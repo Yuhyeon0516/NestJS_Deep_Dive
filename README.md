@@ -1,20 +1,5 @@
 # NestJS_Deep_Dive
 
--   NestJS는 class 기반으로 작성하게될 예정
--   NestJS의 내부 구성은 Controllers, Services, Modules, Pipes, Filters, Guards, Interceptors, Repositories로 이루어져있음
-    -   Controllers: HTTP Request를 처리함
-    -   Services: Data에 접근하거나 관련 비지니스 로직을 처리함
-    -   Modules: Code를 그룹화 할 때 사용됨
-    -   Pipes: HTTP Request로 들어온 Data의 유효성 검사를 진행함
-    -   Filters: HTTP Request중 발생하는 Error를 처리함
-    -   Guards: Auth와 같은 보안이 필요한 상황에 사용됨
-    -   Interceptors: HTTP Request 또는 Response에 Logic을 추가하여 응답함
-    -   Repositories: DB에 저장되어있는 Data를 처리함
--   NestJS에서는 파일 명명법이 있음(아래 예시 참고)
-    -   `AppController`라는 controller class를 만들고자한다면 `app.controller.ts`
-    -   `AppModule`라는 module class를 만들고자한다면 `app.module.ts`
-    -   `name.type_of_thing.ts`의 형태를 가지게 됨
-
 ### NestJS Start Sequence(Not use CLI)
 
 -   사실 NestJS CLI를 사용하면 금방 편하게 구축을 할 수 있지만, CLI가 동작하는 방식을 배우기 위해 비어있는 폴더 상태에서 시작하려고한다.
@@ -73,3 +58,26 @@
 -   `npx ts-node-dev src/main.ts`명령어를 이용하여 작성한 server를 동작시키면 `http://localhost:4000`에 server가 동작하게된다.
 
 ### NestJS Start Sequence(Use CLI)
+
+-   `npm install -g @nestjs/cli`명령어로 `@nestjs/cli`를 설치
+-   `nest new 프로젝트명`명령어를 실행 후 사용 할 package manager를 선택해주면 약 1분 후 project setting이 완료됨
+-   이후 `npm run start:dev`를 하면 dev server가 지정한 port로 동작됨
+
+### NestJS Theory
+
+-   NestJS는 class 기반으로 작성하게될 예정
+-   NestJS의 내부 구성은 Controllers, Services, Modules, Pipes, Filters, Guards, Interceptors, Repositories로 이루어져있음
+    -   Controllers: HTTP Request를 처리함
+    -   Services: Data에 접근하거나 관련 비지니스 로직을 처리함
+    -   Modules: Code를 그룹화 할 때 사용됨
+    -   Pipes: HTTP Request로 들어온 Data의 유효성 검사를 진행함
+    -   Filters: HTTP Request중 발생하는 Error를 처리함
+    -   Guards: Auth와 같은 보안이 필요한 상황에 사용됨
+    -   Interceptors: HTTP Request 또는 Response에 Logic을 추가하여 응답함
+    -   Repositories: DB에 저장되어있는 Data를 처리함
+-   NestJS에서는 파일 명명법이 있음(아래 예시 참고)
+    -   `AppController`라는 controller class를 만들고자한다면 `app.controller.ts`
+    -   `AppModule`라는 module class를 만들고자한다면 `app.module.ts`
+    -   즉 `name.type_of_thing.ts`의 형태를 가지게 됨
+
+### MessagesApp
