@@ -66,6 +66,9 @@
 ### NestJS Theory
 
 -   NestJS는 class 기반으로 작성하게될 예정
+
+    ***
+
 -   NestJS의 내부 구성은 Controllers, Services, Modules, Pipes, Filters, Guards, Interceptors, Repositories로 이루어져있음
     -   Controllers: HTTP Request를 처리함
     -   Services: Data에 접근하거나 관련 비지니스 로직을 처리함
@@ -75,6 +78,7 @@
     -   Guards: Auth와 같은 보안이 필요한 상황에 사용됨
     -   Interceptors: HTTP Request 또는 Response에 Logic을 추가하여 응답함
     -   Repositories: DB에 저장되어있는 Data를 처리함
+    ***
 -   NestJS에서는 파일 명명법이 있음(아래 예시 참고)
     -   `AppController`라는 controller class를 만들고자한다면 `app.controller.ts`
     -   `AppModule`라는 module class를 만들고자한다면 `app.module.ts`
@@ -85,6 +89,7 @@
         -   추가로 생성해놓은 module과 연결을 자동으로 하고싶다면 `nest generate (type_of_thing) (folder/module name) --flat`명령어를 진행하면됨
             -   ex: `nest generate controller messages/messages --flat`을 진행하면 `messages.controller.ts`가 생성되고 `messages.module.ts`에 controller가 자동으로 연결이 된다.
             -   `--flat`옵션을 제거하게되면 입력한 폴더내에 controller라는 폴더가 생성되고 그 안에 `(name).controller.ts`파일이 생성되게 된다.
+    ***
 -   NestJS Decorator의 종류
 
     -   사용 전 `tsconfig.json`에서 하기 항목이 `true`로 되어있는지 꼭 확인!
@@ -103,6 +108,8 @@
         -   `@Query()`: Url에서 query string을 가져올때 사용
         -   `@Headers()`: Request에 같이 온 headers를 가져올때 사용
         -   `@Body()`: Request에 같이 온 body를 가져올때 사용
+
+    ***
 
 -   Validation Pipe
 
@@ -199,6 +206,8 @@
                 );
                 ```
 
+    ***
+
 -   Service와 Repository
 
     -   보통은 repository를 먼저 만들고 거기에 service의 logic을 연결하는 방식으로 진행하게 됨
@@ -209,6 +218,8 @@
     -   `src/(name)/(name).service.ts`에 위에 작성한 repository와 연결하는 비지니스 로직을 작성
     -   이렇게보면 repository와 service가 중복된 동작을 하게 될 경우가 많을거같은데 왜 둘 다 필요한가?에 대한 의문이 들수있음
         -   추후 의존성 주입에 대해 알게되면 service의 존재 이유에 대해 알게 될것이니 넘어감
+
+    ***
 
 -   예외 처리
 
@@ -244,6 +255,8 @@
             }
         }
         ```
+
+    ***
 
 -   의존성 주입(Dependency injection)
 
@@ -328,7 +341,91 @@
             }
             ```
 
--   Type ORM
+    ***
+
+-   TypeORM
+
+    -   Database 구축 간 TypeORM을 사용하면 NestJS와 궁합이 정말 좋다고 소개를 하고있다.
+    -   물론 type이 없는 Mongoose와 같은 database도 사용이 가능하다.
+    -   `npm install @nestjs/typeorm typeorm sqlite3`을 진행(database로 SQLite를 사용할경우)
+    -   이후 `app.module.ts`에서 `@Module`데코레이터의 `imports`옵션에 아래와 같이 `TypeOrmModule.forRoot()`을 넣어준다
+        ```javascript
+        @Module({
+            imports: [
+                TypeOrmModule.forRoot({
+                    type: "sqlite", // database의 종류
+                    database: "db.sqlite", // project root에 생성할 database의 이름
+                    entities: [], // project에 사용되는 entity
+                    synchronize: true,
+                }),
+            ],
+            ...
+        })
+        ```
+    -   다음 `npm run start:dev`를 진행하게되 root path에 `db.sqlite`가 생성된다.
+    -   Data에 대한 entity를 생성하게되면 NestJS와 TypeORM이 보이지 않는곳에서 합작하여 repository를 생성해줌
+
+        -   Entity를 생성하는 과정
+
+            1.  `(name).entity.ts`와 같은 구조로 entity 파일을 생성한다.(ex: `user.entity.ts`)
+            2.  생성한 파일 안에 `@Enity`, `@PrimaryGeneratedColumn`, `@Column` 데코레이터를 이용하여 entity의 type들을 정의한다.(아래 예시 참고)
+
+                ```javascript
+                import {
+                    Column,
+                    Entity,
+                    PrimaryGeneratedColumn,
+                } from "typeorm";
+
+                @Entity()
+                export class User {
+                    @PrimaryGeneratedColumn()
+                    id: number;
+
+                    @Column()
+                    email: string;
+
+                    @Column()
+                    password: string;
+                }
+                ```
+
+            3.  이제 생성한 entity를 부모 module에 연결하여야한다.(아래 예시 참고)
+
+                -   부모 module에서 `@Module`데코레이터 `imports`구문에 `TypeOrmModule.forFeature([entity])`를 추가하여 module에 import 되게한다.
+
+                    ```javascript
+                    import { Module } from "@nestjs/common";
+                    import { UsersService } from "./users.service";
+                    import { UsersController } from "./users.controller";
+                    import { TypeOrmModule } from "@nestjs/typeorm";
+                    import { User } from "./user.entity";
+
+                    @Module({
+                        imports: [TypeOrmModule.forFeature([User])],
+                        providers: [UsersService],
+                        controllers: [UsersController],
+                    })
+                    export class UsersModule {}
+                    ```
+
+            4.  App module에 생성한 entity를 `TypeOrmModule.forRoot`의 `entity` 배열에 추가한다.
+
+                ```javascript
+                TypeOrmModule.forRoot({
+                    type: "sqlite",
+                    database: "db.sqlite",
+                    entities: [User],
+                    synchronize: true,
+                }),
+                ```
+
+            5.  파일을 save하고 NestJS를 동작시키면 위에 선언한 DB에 TypeORM이 알아서 type을 맞춰 선언해준다.
+
+        -   그럼 보이지 않는곳에 repository를 생성해주는데 어떻게 접근할 수 있을까?
+            -   TypeORM Docs를 보면 이미 여러개의 Method를 정의해 놓았다고한다.(https://typeorm.io/repository-api)
+            -   위 링크를 확인해보면 CRUD 기능이 전부 구현이 되어있음
+            -   그래서 직접적으로 repository의 기능을 건드릴 일이 없음
 
 ### REST Client 사용법(VSCode extension)
 
@@ -364,5 +461,10 @@
     |Patch|/reports/:id|Body - {approved}|사용자가 제출한 자동차 정보를 검토하여 승인하거나, 반려처리함|
 
 -   Module 설계
+
     -   API 설계 내용을 보면 Users, Reports 총 2개의 module이 필요함을 알 수 있음
-    -
+    -   2개의 module 모두 controller, service, repository를 가져야함
+
+-   Database
+    -   이번 프로젝트는 TypeORM을 한번 써보기위해 SQLite를 사용해보려고한다.
+    -   추후에 Postgres로 변동 될 여지는 있음
