@@ -301,6 +301,31 @@
         -   이렇게 DI Container에 올려줌으로써 우리가 의존성에 대해 생각 할 것이 줄어들게됨
         -   그리고 대부분 프로젝트에서 controller를 제외하고 전부 의존성 주입이 필요하게 될것으로 보임
     -   DI Container가 적용되면서 NestJS가 자체적으로 code를 re-building하면서 class가 직접적으로 의존성을 가지지 않게되며 이렇게 제어 역전 원칙을 지키게됨
+    -   Module간 의존성 주입
+
+        -   Module간에 접근이 필요하여 의존성 주입이 필요한경우에는 `@Module` 데코레이터에 `exports`옵션으로 타 module에서 접근이 필요한 service를 넣어준다.
+            -   `exports` 옵션으로 넣지않고 `provider` 옵션에만 service가 존재하는경우에는 module내부에서만 해당 service에 접근이 가능함
+        -   그리고 사용할 module에서 `@Module` 데코레이터에 `imports`옵션으로 접근 할 module을 넣어준다.
+            -   `imports` 옵션으로 넣어준 module이 `exports`하는 service는 전부 접근이 가능함
+        -   아래 예시는 cpu module에서 power module에 있는 power service를 사용해야할 때
+
+            ```javascript
+            @Module({
+                providers: [PowerService],
+                exports: [PowerService],
+            })
+            export class PowerModule {}
+
+            @Module({
+                imports: [PowerModule],
+                providers: [CpuService],
+            })
+            export class CpuModule {}
+
+            export class CpuService {
+                constructor(private powerService: PowerService) {}
+            }
+            ```
 
 ### REST Client 사용법(VSCode extension)
 
