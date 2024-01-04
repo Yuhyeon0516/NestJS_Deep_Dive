@@ -422,10 +422,18 @@
 
             5.  파일을 save하고 NestJS를 동작시키면 위에 선언한 DB에 TypeORM이 알아서 type을 맞춰 선언해준다.
 
-        -   그럼 보이지 않는곳에 repository를 생성해주는데 어떻게 접근할 수 있을까?
+        -   그럼 보이지않는 곳에 repository를 생성해주는데 어떻게 접근할 수 있을까?
             -   TypeORM Docs를 보면 이미 여러개의 Method를 정의해 놓았다고한다.(https://typeorm.io/repository-api)
             -   위 링크를 확인해보면 CRUD 기능이 전부 구현이 되어있음
             -   그래서 직접적으로 repository의 기능을 건드릴 일이 없음
+            -   그럼 이 보이지않는 repository를 어떻게 service에 연결할까?
+                -   아래와 같이 `@InjectRepository` 데코레이터와 `User` entity, 그리고 `Repository` class를 이용하여 선언하면 service에 `repo`라는 이름으로 접근이 가능해진다.
+                    ```javascript
+                    @Injectable()
+                    export class UsersService {
+                        constructor(@InjectRepository(User) private repo: Repository<User>) {}
+                    }
+                    ```
 
 ### REST Client 사용법(VSCode extension)
 
@@ -463,7 +471,7 @@
 -   Module 설계
 
     -   API 설계 내용을 보면 Users, Reports 총 2개의 module이 필요함을 알 수 있음
-    -   2개의 module 모두 controller, service, repository를 가져야함
+    -   2개의 module 모두 controller, service, repository가 필요함
 
 -   Database
     -   이번 프로젝트는 TypeORM을 한번 써보기위해 SQLite를 사용해보려고한다.
