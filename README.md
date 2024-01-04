@@ -97,6 +97,7 @@
         -   `@Get`: HTTP Get Method
         -   `@Post`: HTTP Post Method
         -   `@Delete`: HTTP Delete Method
+        -   `@Patch`: HTTP Patch Method
     -   Arguments decorator
         -   `@Param("id)`: Url에서 특정 위치의 값을 가져올때 사용
         -   `@Query()`: Url에서 query string을 가져올때 사용
@@ -327,6 +328,8 @@
             }
             ```
 
+-   Type ORM
+
 ### REST Client 사용법(VSCode extension)
 
 -   Root 폴더에 `requests.http`파일을 생성
@@ -347,3 +350,19 @@
     ### get a particular message
     GET http://localhost:3000/messages/123
     ```
+
+### Sample project(my car value)
+
+-   중고차의 가격을 확인하고 판매할 수 있는 간단한 app을 만들어 볼 예정
+-   API 설계
+    |Method|Route|Body or QueryString|설명|
+    |------|---|---|---|
+    |Post|/auth/signup|Body - {email, password}|회원가입|
+    |Post|/auth/signin|Body - {email, password}|로그인|
+    |Get|/reports|QueryString - make, model, year, mileage, longitude, latitude|자동차의 정보를 받아 시세 확인|
+    |Post|/reports|Body - {make, model, year, mileage, longitude, latitude, price}|자동차를 판매하기 위해 자동차 정보 및 가격 올리기|
+    |Patch|/reports/:id|Body - {approved}|사용자가 제출한 자동차 정보를 검토하여 승인하거나, 반려처리함|
+
+-   Module 설계
+    -   API 설계 내용을 보면 Users, Reports 총 2개의 module이 필요함을 알 수 있음
+    -
