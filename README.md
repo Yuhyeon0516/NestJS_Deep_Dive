@@ -435,6 +435,37 @@
                     }
                     ```
 
+-   데이터 직렬화
+
+    -   데이터 직렬화를 하게되는 이유는 response로 보낼 data를 제한하기 위해 많이 사용하게된다.
+    -   Data를 제한하는 방법은 `class-transformer`의 `@Exclude`데코레이터를 entity에 사용하게되면 해당 data는 response에서 제외되게된다.(보통 password처럼 보안이 필요한 부분에 많이 사용한다.)
+        ```javascript
+        @Column()
+        @Exclude()
+        password: string;
+        ```
+    -   이후 controller에서 `UseInterceptors`데코레이터와 `ClassSerializerInterceptor`를 이용하여 나가는 response를 가로채기하면 `Exclude`된 entity는 return이 되지않는다.
+
+        ```javascript
+        @UseInterceptors(ClassSerializerInterceptor)
+        @Get("/:id")
+        async findUser(@Param("id") id: string) {
+            const user = await this.usersService.findOne(parseInt(id));
+            if (!user) {
+                throw new NotFoundException("유저를 찾을 수 없습니다.");
+            }
+            return user;
+        }
+        ```
+
+    -   하지만 위와 같이 진행하면 관리자 페이지와 같은곳에서도 볼 수 없음
+        -   그렇게되면 controller를 하나 더 구성하여 관리자용 routing을 새로 만들어야함
+    -   그래서 NestJS에서는 `CustomInterceptor`를 제공해준다.
+        -   이것의 명명법으로는`intercept(context: ExecutionContext, next: CallHandler)`라고 Docs에 명시되어있다.(어디서 많이 본 문법이라 확인해보니 Rx로 만들어졌다고함)
+    -   사용법으로는
+        1.  `src`폴더 내에 `interceptors`폴더를 생성하고 그 내부에 `serialize.interceptor.ts`를 생성한다.
+        2.
+
 ### REST Client 사용법(VSCode extension)
 
 -   Root 폴더에 `requests.http`파일을 생성
