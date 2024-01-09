@@ -592,6 +592,352 @@
 
 -   Authentication
 
+    -   ` Auth Service`의 경우 `Users Service`에 합치는거보다 service는 별도로 분리하는게 확장성에 용이하다.
+    -   그래서 보통은 `Auth Service`가 `Users Service`에 의존하는 방식으로 분리해서 사용한다.
+
+        -   그래서 `Auth Service`에서 `Users Service`를 참고할 수 있도록 `Auth Service`를 구성한다.
+
+            ```javascript
+            import { Injectable } from "@nestjs/common";
+            import { UsersService } from "./users.service";
+
+            @Injectable()
+            export class AuthService {
+                constructor(private usersService: UsersService) {}
+            }
+            ```
+
+    -   이제 `Users Module`에 `providers`에 `Auth Service`를 추가한다.
+
+        ```javascript
+        @Module({
+            imports: [TypeOrmModule.forFeature([User])],
+            providers: [UsersService, AuthService],
+            controllers: [UsersController],
+        })
+        export class UsersModule {}
+        ```
+
+    -   이후 `Auth Service`에 인증과 관련된 작업들을 작성한다.(예시로 회원가입, 로그인, 비밀번호변경 등과 같은 작업)
+    -   회원가입, 로그인 등 필요한 service를 작성 후 `Users Controller`와 연동
+    -   회원가입이나 로그인 시퀀스를 진행 후 cookie를 넘겨주어야하는데, 이 cookie를 확인하고 전달하려면 NestJS Docs에서 설명해주는 아래의 package를 install해야한다.
+
+        `npm install express-session cookie-parser`
+
+        `npm install -D @types/express-session @types/cookie-parser`
+
+    -   이후 app을 initialize하는 구문에서 `app.use`를 이용하여 모두 middleware로 등록해준다.
+
+        ```javascript
+        import * as cookieParser from "cookie-parser";
+        import * as session from "express-session";
+
+        async function bootstrap() {
+            ...
+            app.use(cookieParser());
+            app.use(
+                session({
+                    secret: "instead", // 암호화 할때 사용하는 text(아무거나 사용해도됨)
+                    resave: false, // resave를 true로 활성화하면 session이 변동되지 않았을때도 지속적으로 다시 저장해줌(변동될 때만 저장해주면되니까 false)
+                    saveUninitialized: false, // saveUninitialized를 true로 활성화하면 초기화되지않은 session이 강제로 저장됨(로그인 session을 구현할때는 false)
+                }),
+            );
+            ...
+        }
+        ```
+
+    -   일단 session을 등록하고 조회하는방법부터 배우기 위해 아래와 같이 Test를 진행
+
+        -   Session의 값을 설정하는 방법은 `@Session`데코레이터를 이용하여 session을 가져온 뒤 session에 값을 넣어주고 해당 routing에 `Get`을 하게되면 아래와 같은 `Set-Cookie`를 포함한 response가 발생되게된다.
+
+            ```javascript
+            @Get("/colors/:color")
+            setColor(@Param("color") color: string, @Session() session: any) {
+                session.color = color;
+            }
+            ```
+
+            ```http
+            HTTP/1.1 200 OK
+            X-Powered-By: Express
+            Set-Cookie: connect.sid=s%3ALF-8al6yiA46y2DcSFXNMTu3_HAbFgNe.xuLziApsTr8wv8bxZ7R9qYXCXFVsgDeLDY42HujQN18; Path=/; HttpOnly
+            Date: Tue, 09 Jan 2024 09:40:19 GMT
+            Connection: close
+            Transfer-Encoding: chunked
+            ```
+
+        -   Session의 값을 가져오는 방법은 동일하기 `@Session`데코레이터를 이용하여 session을 가져온뒤 설정해준 session 값을 조회하여 return해주면 아래와 같이 response에서 값을 확인할 수 있다.
+
+            ```javascript
+            @Get("/colors")
+            getColor(@Session() session: any) {
+                return session.color;
+            }
+            ```
+
+            ```http
+            HTTP/1.1 200 OK
+            X-Powered-By: Express
+            Content-Type: text/html; charset=utf-8
+            Content-Length: 3
+            ETag: W/"3-eJiAELiQzm9NITZIHzknh+xtYQY"
+            Date: Tue, 09 Jan 2024 09:45:40 GMT
+            Connection: close
+
+            red
+            ```
+
+    -   그럼 이제 이걸 회원가입 또는 로그인 시 userId, jwt와 같은 고유한 값을 session에 담아 아래와 같이 넘겨주면 response에서 `Set-Cookie`가 추가된 것을 확인할 수 있다. 만약 `Set-Cookie`가 보이지 않는다면 session에 변동이 있을때만 response에서 확인이 가능하기에 변동사항이 없다는 것을 뜻함(이번 study간에는 userId를 이용해봄)
+
+        ```javascript
+        @Post("/signup")
+        async createUser(@Body() body: CreateUserDto, @Session() session: any) {
+            const user = await this.authService.signup(body.email, body.password);
+            session.userId = user.id;
+            return user;
+        }
+
+        @Post("/signin")
+        async signin(@Body() body: CreateUserDto, @Session() session: any) {
+            const user = await this.authService.signin(body.email, body.password);
+            session.userId = user.id;
+            return user;
+        }
+        ```
+
+        ```http
+        HTTP/1.1 201 Created
+        X-Powered-By: Express
+        Content-Type: application/json; charset=utf-8
+        Content-Length: 33
+        ETag: W/"21-6eZt003uyql7urxWR6WSfFrJYUU"
+        Set-Cookie: connect.sid=s%3AESfBIpgVcbi6aXjeERKYMVZeudJ-hBS7.c%2FNuyyzHwoYoxxSKIil%2FKD70CnUWRYLzFd9duhXC4NI; Path=/; HttpOnly
+        Date: Tue, 09 Jan 2024 09:52:13 GMT
+        Connection: close
+
+        {
+            "id": 4,
+            "email": "test4@test.com"
+        }
+        ```
+
+    -   이제 추후에 게시물 작성과 같은 기능을 추가하면 현재 사용자를 확인하고 어떤 user인지 확인하여야하는데 그것은 추후에 적용하겠지만 미리 Test해보면 아래와 같이 test용 routing을 만들어서 `session.userId`를 읽어오고 그 값으로 user를 조회하면 아래와 같은 response가 돌아오게된다.
+
+        ```javascript
+        @Get("/whoami")
+        whoAmI(@Session() session: any) {
+            return this.usersService.findOne(session.userId);
+        }
+        ```
+
+        ```http
+        HTTP/1.1 200 OK
+        X-Powered-By: Express
+        Content-Type: application/json; charset=utf-8
+        Content-Length: 33
+        ETag: W/"21-6eZt003uyql7urxWR6WSfFrJYUU"
+        Date: Tue, 09 Jan 2024 10:07:41 GMT
+        Connection: close
+
+        {
+            "id": 4,
+            "email": "test4@test.com"
+        }
+        ```
+
+    -   이제 user를 signout 시키는 방법은 간단하면서도 복잡하다.
+
+        -   아래와 같이 signout routing을 작성하고 `session.userId`에 `null`값을 넣어준다.
+            ```javascript
+            @Post("/signout")
+            signOut(@Session() session: any) {
+                session.userId = null;
+            }
+            ```
+        -   그러나 위 작업만하면 `/whoami`에서 엉뚱한 user가 조회되는데 그 이유는 `SQLite`에서 찾고자 하는 id에 `null`을 넣어주면 해당 DB의 제일 첫번째값을 return하기 때문이다.
+        -   그래서 `Users Service`에 방어코드로 입력된 id가 `null`이면 `null`을 반환해주면된다.
+            ```javascript
+            findOne(id: number) {
+                if (!id) {
+                    return null;
+                }
+                return this.repo.findOneBy({ id });
+            }
+            ```
+
+    -   이제 위에 모든걸 적용하여 `Guard`로 권한이 없다면 request를 거부하는 시퀀스를 만들어야한다.
+
+        -   이를 적용하기 위해서는 모든 route에서 현재 user를 항상 알고 있어야하는데 이 기능을 위해 `Interceptor` + `Decorator`의 조합을 만들어보려고한다.
+        -   `Decorator`를 이용하여 `userId`를 얻기위해 아래처럼 `CurrentUser`를 `createParamDecorator`로 생성하면 `request.session.userId`를 통해 값을 얻어올 수 있다.
+
+            ```javascript
+            import {
+                createParamDecorator,
+                ExecutionContext,
+            } from "@nestjs/common";
+
+            export const CurrentUser = createParamDecorator(function (
+                data: never,
+                context: ExecutionContext
+            ) {
+                // data는 decorator를 사용할때 매개변수로 넘겨주는 값을 가지고있음
+                // context는 통신과 관련된 모든 내용을 가지고있음
+
+                const request = context.switchToHttp().getRequest();
+            });
+            ```
+
+        -   그러나 `Decorator`는 DI 즉, 의존성 주입을 할 수 없어서 `User Service`에서 해당 user의 정보를 가져올 수 없다.
+
+            -   이를 해결하려면 `Interceptor`를 생성하여 그 interceptor에서 `User Service`에 의존성을 주입받고 DB에 접근해 request에 user정보를 넣어준다.
+
+                ```javascript
+                import {
+                    NestInterceptor,
+                    ExecutionContext,
+                    CallHandler,
+                    Injectable,
+                } from "@nestjs/common";
+                import { UsersService } from "../users.service";
+
+                @Injectable()
+                export class CurrentUserInterceptor implements NestInterceptor {
+                    constructor(private usersService: UsersService) {}
+
+                    async intercept(context: ExecutionContext, handler: CallHandler) {
+                        const request = context.switchToHttp().getRequest();
+                        const { userId } = request.session || {};
+
+                        if (userId) {
+                            const user = await this.usersService.findOne(userId);
+                            request.currentUser = user;
+                        }
+
+                        return handler.handle();
+                    }
+                }
+                ```
+
+            -   위에 생성한 `Interceptor`를 controller에 decorator로 달아주면 `UsersController`로 들어오는 request는 전부 currentUser의 값을 가지게된다.
+                ```javascript
+                @Controller("auth")
+                @Serialize(UserDto)
+                @UseInterceptors(CurrentUserInterceptor)
+                export class UsersController {
+                    ...
+                }
+                ```
+            -   그 후 `Decorator`에서 request를 확인하면 위에서 넣어준 user정보가 생성되었고 해당 정보를 return해주면 `@CurrentUser` decorator를 통해 값에 접근할 수 있게 된다.
+
+                ```javascript
+                import {
+                    createParamDecorator,
+                    ExecutionContext,
+                } from "@nestjs/common";
+
+                export const CurrentUser = createParamDecorator(function (
+                    data: never,
+                    context: ExecutionContext
+                ) {
+                    // data는 decorator를 사용할때 매개변수로 넘겨주는 값을 가지고있음
+                    // context는 통신과 관련된 모든 내용을 가지고있음
+
+                    const request = context.switchToHttp().getRequest();
+                    return request.currentUser;
+                });
+                ```
+
+            -   이렇게하면 `Decorator`가 `User Service`에 DI를 할 필요가 없어진다.
+            -   그러나 위와같이 설계를 하면 currentUser값이 필요한 controller마다 모두 interceptor를 달아줘야한다는 단점이 있다.
+
+        -   그래서 나온 방법이 global interceptor이다.
+        -   Global interceptor는 module 자체에 들어오는 모든 request에 interceptor를 걸 수 있도록하는것이다.
+        -   아래와 같이 필요한 module에 provider로 넘겨주게되면 해당 module에 들어오는 request는 currentUser의 값을 가지게되나 필요없는경우에도 값을 처리하여 가지고있기 때문에 이 또한 단점이 될 수 있다.
+
+            ```javascript
+            import { Module } from "@nestjs/common";
+            import { UsersService } from "./users.service";
+            import { UsersController } from "./users.controller";
+            import { TypeOrmModule } from "@nestjs/typeorm";
+            import { User } from "./user.entity";
+            import { AuthService } from "./auth.service";
+            import { CurrentUserInterceptor } from "./interceptors/current-user.interceptor";
+            import { APP_INTERCEPTOR } from "@nestjs/core";
+
+            @Module({
+                imports: [TypeOrmModule.forFeature([User])],
+                providers: [
+                    UsersService,
+                    AuthService,
+                    {
+                        useClass: CurrentUserInterceptor,
+                        provide: APP_INTERCEPTOR,
+                    },
+                ],
+                controllers: [UsersController],
+            })
+            export class UsersModule {}
+            ```
+
+        -   controller별로 interceptor를 적용하는것, global interceptor를 적용하는것 모두 장단점이 있고 개인의 취향이니 선택적으로 사용하면 될 듯
+
+    -   이제 마지막 작업으로 권한이 없으면 request를 거부하는 `Guard`를 적용할 차례이다.
+        -   `Guard`는 app의 모든 접근 전, controller 접근 전, handler 접근 전에 모두 적용할 수 있다.
+    -   `AuthGuard`를 아래와 같이 `CanActivate`를 implement하는 class로 만들어주고, `canActivate`에 조건을 return해주면된다.(대체로 boolean을 return함)
+
+        ```javascript
+        import { CanActivate, ExecutionContext } from "@nestjs/common";
+
+        export class AuthGuard implements CanActivate {
+            canActivate(context: ExecutionContext) {
+                const request = context.switchToHttp().getRequest();
+
+                return request.session.userId;
+            }
+        }
+        ```
+
+    -   그 후 적용할 곳에서 `UseGuards` decorator를 이용하여 적용하면된다.
+
+        -   controller에 적용 시
+
+            ```javascript
+            @Controller("auth")
+            @Serialize(UserDto)
+            @UseGuards(AuthGuard)
+            export class UsersController {
+                ...
+            }
+            ```
+
+        -   handler에 적용 시
+
+            ```javascript
+            @Get("/whoami")
+            @UseGuards(AuthGuard)
+            whoAmI(@CurrentUser() user: User) {
+                return user;
+            }
+            ```
+
+        -   권한이 없는데 접근 시 아래와 같이 `403 Forbidden` error가 발생하게된다.
+
+            ```http
+            HTTP/1.1 403 Forbidden
+            X-Powered-By: Express
+            Content-Type: application/json; charset=utf-8
+            Content-Length: 69
+            ETag: W/"45-MZJWZc+Y+RUbHpnhz2B2Vipii24"
+            Date: Tue, 09 Jan 2024 12:46:20 GMT
+            Connection: close
+
+            {
+                "message": "Forbidden resource",
+                "error": "Forbidden",
+                "statusCode": 403
+            }
+            ```
+
 ### REST Client 사용법(VSCode extension)
 
 -   Root 폴더에 `requests.http`파일을 생성
