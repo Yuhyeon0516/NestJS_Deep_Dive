@@ -463,8 +463,134 @@
     -   그래서 NestJS에서는 `CustomInterceptor`를 제공해준다.
         -   이것의 명명법으로는`intercept(context: ExecutionContext, next: CallHandler)`라고 Docs에 명시되어있다.(어디서 많이 본 문법이라 확인해보니 Rx로 만들어졌다고함)
     -   사용법으로는
-        1.  `src`폴더 내에 `interceptors`폴더를 생성하고 그 내부에 `serialize.interceptor.ts`를 생성한다.
-        2.
+
+        1.  직렬화 후 보내고싶은 형태의 DTO를 `@Expose`데코레이터를 이용하여 생성한다.(`@Expose`데코레이터는 `@Exclude`와 반대되는 속성)
+
+            ```javascript
+            import { Expose } from "class-transformer";
+
+            export class UserDto {
+                @Expose()
+                id: number;
+
+                @Expose()
+                email: string;
+            }
+            ```
+
+        2.  `src`폴더 내에 `interceptors`폴더를 생성하고 그 내부에 `serialize.interceptor.ts`를 생성한다.
+        3.  `serialize.interceptor.ts`에서 아래와 같이 작성한다.
+
+            -   `plainToClass`함수를 이용하여 기존에 reponse로 돌려주던 `data`를 `UserDto`의 형태로 변환하고 `excludeExtraneousValues`에 true를 주면 DTO에서 `@Exclude`데코레이터가 포함된 entity는 return이 되지않는다.
+
+            ```javascript
+            import {
+                NestInterceptor,
+                ExecutionContext,
+                CallHandler,
+            } from "@nestjs/common";
+            import { plainToInstance } from "class-transformer";
+            import { Observable, map } from "rxjs";
+            import { UserDto } from "src/users/dtos/user.dto";
+
+            export class SerializeInterceptor implements NestInterceptor {
+                intercept(
+                    context: ExecutionContext,
+                    next: CallHandler<any>
+                ): Observable<any> {
+                    // request가 들어오면 실행되는 부분
+                    // url, method 등과 같은 정보가 context 들어있음
+                    return next.handle().pipe(
+                        map((data: any) => {
+                            // response가 전송되기 전에 실행되는 부분
+                            // response 될 data에 대한 정보가 data에 들어있음
+                            return plainToInstance(UserDto, data, {
+                                excludeExtraneousValues: true,
+                            });
+                        })
+                    );
+                }
+            }
+            ```
+
+        4.  하지만 위와 같이 생성하게되면 DTO마다 각각의 interceptor를 생성해줘야해서 재사용을 위해 아래와 같이 DTO를 입력받아 오는 방식으로 변경
+
+            ```javascript
+            export class SerializeInterceptor implements NestInterceptor {
+                constructor(private dto: any) {}
+
+                intercept(
+                    context: ExecutionContext,
+                    next: CallHandler<any>,
+                ): Observable<any> {
+                    // request가 들어오면 실행되는 부분
+                    // url, method 등과 같은 정보가 context 들어있음
+                    return next.handle().pipe(
+                        map((data: any) => {
+                            // response가 전송되기 전에 실행되는 부분
+                            // response 될 data에 대한 정보가 data에 들어있음
+                            return plainToInstance(this.dto, data, {
+                                excludeExtraneousValues: true,
+                            });
+                        }),
+                    );
+                }
+            }
+            ```
+
+        5.  그 후 controller에서 아래와 같이 `SerializeInterceptor`에 `생성한 Dto`를 매개변수로 넣어줌
+            ```javascript
+            @UseInterceptors(new SerializeInterceptor(UserDto))
+            @Get("/:id")
+            async findUser(@Param("id") id: string) {
+                const user = await this.usersService.findOne(parseInt(id));
+                if (!user) {
+                    throw new NotFoundException("유저를 찾을 수 없습니다.");
+                }
+                return user;
+            }
+            ```
+        6.  그러나 또 위와 같이 진행하게되면 Code가 복잡해지면 복잡해질수록 보기 힘들어지는 단점이 생겨 `Serialize`라는 `Custom decorator`를 생성하여 아래와 같이 controller에 적용
+
+            ```javascript
+            export function Serialize(dto: any) {
+                return UseInterceptors(new SerializeInterceptor(dto));
+            }
+
+            @Serialize(UserDto)
+            @Get("/:id")
+            async findUser(@Param("id") id: string) {
+                const user = await this.usersService.findOne(parseInt(id));
+                if (!user) {
+                    throw new NotFoundException("유저를 찾을 수 없습니다.");
+                }
+                return user;
+            }
+            ```
+
+        7.  추가로 해당 controller에 발생하는 response 전부 Serialize 후 보내고싶다면 아래와 같이 controller에 `@Serialize`데코레이터를 사용하면 해당 controller에서 발생하는 response는 `UserDto`의 형태로 serialize후 response된다.
+
+            ```javascript
+            @Controller("auth")
+            @Serialize(UserDto)
+            export class UsersController {
+                ...
+            }
+            ```
+
+        8.  마지막으로 현재 dto의 type을 any로 정의해두었는데 이러면 Typescript를 사용하는 이점이 사라지며 안정성이 떨어지고, 현재는 interceptor할떄 사용되는 NestJS의 데코레이터의 타입을 지원 안해주고 있음. 그래서 최소한의 방어 코드를 위해 any로 정의된 dto를 아래처럼 `ClassConstructor` interface를 생성 후 dto의 type으로 정의해주면 class를 제외한 나머지를 dto에 넣어주려고하면 error가 발생됨.
+
+            ```javascript
+            interface ClassConstructor {
+                new(...args: any[]): object;
+            }
+
+            export function Serialize(dto: ClassConstructor) {
+                return UseInterceptors(new SerializeInterceptor(dto));
+            }
+            ```
+
+-   Authentication
 
 ### REST Client 사용법(VSCode extension)
 
