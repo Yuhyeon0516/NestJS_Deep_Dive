@@ -941,12 +941,322 @@
             ```
 
 -   Test
+
     -   App에 구현되어있는 모든 기능들의 test case를 작성하면 app의 신뢰도가 올라간다.
     -   Unit Test(단위 테스트)
         -   NestJS에서 unit test는 service와 controller 단위로 test가 이루어진다.
+        -   Test 진행 전 `package.json`에서 `moduleNameMapper`에 대한 설정을 해줘야한다.
+            -   Test 할때 NestJS에서는 절대경로로 치환되는 부분들이 있는데 이 경로를 인식하지 못하기때문에 이를 설정해주어야한다.
+                ```json
+                "jest": {
+                    "moduleFileExtensions": [
+                        "js",
+                        "json",
+                        "ts"
+                    ],
+                    "rootDir": "src",
+                    "testRegex": ".*\\.spec\\.ts$",
+                    "transform": {
+                        "^.+\\.(t|j)s$": "ts-jest"
+                    },
+                    "collectCoverageFrom": [
+                        "**/*.(t|j)s"
+                    ],
+                    "coverageDirectory": "../coverage",
+                    "testEnvironment": "node",
+                    "moduleNameMapper": {
+                        "src/(.*)": "<rootDir>/$1",
+                        "tests/(.*)": "<rootDir>/__tests__/$1"
+                    },
+                    "moduleDirectories": [
+                        "node_modules",
+                        "src"
+                    ]
+                }
+                ```
         -   DI(의존성 주입) 되어있는 부분들은 모두 가상의 unit으로 구현 후 test module에 provider로 넣어줘야함
         -   Unit Test에서는 decorator를 사용할 수 없다.(decorator까지 test하기 위해서는 E2E Test를 진행하여야한다.)
-    -   E2E Test
+    -   E2E Test(End to End Test)
+
+        -   E2E Test 진행 전 unit test 할 때와 동일하게 `jest-e2e.json`에서 경로에 대한 설정을 해주어야한다.
+
+            ```json
+            {
+                "moduleFileExtensions": ["js", "json", "ts"],
+                "rootDir": ".",
+                "testEnvironment": "node",
+                "testRegex": ".e2e-spec.ts$",
+                "transform": {
+                    "^.+\\.(t|j)s$": "ts-jest"
+                },
+                "moduleNameMapper": {
+                    "^src/(.*)$": "<rootDir>/../src/$1"
+                }
+            }
+            ```
+
+        -   추가로 `main.ts`에서 설정해준 middleware들도 동일하게 E2E Test app에서도 설정해주어야한다.
+
+            -   그래서 아래 middleware를 설정하는 구문들을 별도 함수로 분리하여 적용해주는 첫번째 방법이 있다.(간편하게 구현이 가능함)
+
+                -   `setup-app.ts`를 생성 후 아래와 같이 필요한 middleware를 적용
+
+                    ```javascript
+                    import { ValidationPipe } from "@nestjs/common";
+                    import * as cookieParser from "cookie-parser";
+                    import * as session from "express-session";
+
+                    export function setupApp(app: any) {
+                        app.use(cookieParser());
+                        app.use(
+                            session({
+                                secret: "instead",
+                                resave: false,
+                                saveUninitialized: false,
+                            })
+                        );
+                        app.useGlobalPipes(
+                            new ValidationPipe({
+                                whitelist: true, // DTO에 선언한 형식을 제외한 다른 속성은 들어와도 무시함
+                            })
+                        );
+                    }
+                    ```
+
+                -   이후 `main.ts`에서 위 `setupApp`함수를 이용하여 middleware 적용
+
+                    ```javascript
+                    import { NestFactory } from "@nestjs/core";
+                    import { AppModule } from "./app.module";
+                    import { setupApp } from "./setup-app";
+
+                    async function bootstrap() {
+                        const app = await NestFactory.create(AppModule);
+                        setupApp(app);
+                        await app.listen(3000);
+                    }
+                    bootstrap();
+                    ```
+
+                -   마지막으로 진행하고있는 E2E Test app에도 동일하게 `setupApp`함수를 이용하여 적용
+
+                    ```javascript
+                    describe("Authentication System (e2e)", () => {
+                        let app: INestApplication;
+
+                        beforeEach(async () => {
+                            const moduleFixture: TestingModule = await Test.createTestingModule({
+                                imports: [AppModule],
+                            }).compile();
+
+                            app = moduleFixture.createNestApplication();
+                            setupApp(app);
+                            await app.init();
+                        });
+                    }
+                    ```
+
+            -   그러나 NestJS에서 알려주는 공식적인 방법은 다음과 같다.
+
+                -   바로 `AppModule`에 `Global pipe`와 `Global middleware`를 적용하는 것이다.
+                -   현재는 `main.ts`에서 `Global pipe`와 `middleware`를 적용해둔 상태이나 `AppModule`에 적용하면 E2E Test시 `AppModule`을 import하여 사용하기 때문에 E2E Test에서 따로 설정을 해 줄 필요가 없어진다.
+                    -   TDD로 구현을 할 때는 처음부터 `AppModule`에 적용하는것이 좋을것 같다는 생각이 들었다.
+                -   `Global pipe`는 아래와 같이 `@Module` decorator의 provider 제공자에 `APP_PIPE`와 함께 넣어주면 된다.
+                    ```javascript
+                    @Module({
+                        imports: [
+                            TypeOrmModule.forRoot({
+                                type: "sqlite",
+                                database: "db.sqlite",
+                                entities: [User, Report],
+                                synchronize: true,
+                            }),
+                            UsersModule,
+                            ReportsModule,
+                        ],
+                        controllers: [AppController],
+                        providers: [
+                            AppService,
+                            {
+                                provide: APP_PIPE,
+                                useValue: new ValidationPipe({
+                                    whitelist: true,
+                                }),
+                            },
+                        ],
+                    })
+                    export class AppModule {}
+                    ```
+                -   `Global middleware`는 `AppModule`class내에 `configure`함수로 아래와 같이 정의를 하여야한다.
+
+                    ```javascript
+                    export class AppModule {
+                        configure(consumer: MiddlewareConsumer) {
+                            consumer.apply(cookieParser()).forRoutes("*");
+                            consumer
+                                .apply(
+                                    session({
+                                        secret: "instead",
+                                        resave: false,
+                                        saveUninitialized: false,
+                                    })
+                                )
+                                .forRoutes("*");
+                        }
+                    }
+                    ```
+
+                -   확실히 코드 시인성은 많이 떨어지긴하나 Test에는 편해진다..
+
+        -   E2E Test를 진행하다보면 DB가 오염되기 쉽다.(Test를 진행하면서 지속적으로 바뀌기 때문)
+
+            -   회원가입과 같이 중복된 email을 허용하지 않는경우에는 error가 발생한다.
+            -   그럼 또 다음 Test를 할 때는 email의 값을 바꿔주고 Test해야하고 Test마다 값을 변경을 해줘야하는 번거로움이 생긴다.
+            -   그래서 Test용 DB를 하나 새로 만들고 Test를 실행할 때마다 DB가 초기화되도록하고 Test를 진행하는 것이 좋다.
+            -   이때 Dotenv를 활용하여 DB를 분리할 수 있다.
+
+                -   NestJS에서는 Dotenv를 controller하기위한 library를 제공해준다.(@nestjs/config)
+
+                    `npm install @nestjs/config`
+
+                -   NestJS에서는 일반적인 Dotenv와는 다르게 여러개의 `.env`를 생성해도 된다고 말하고있다.(Dotenv는 무조건 `.env`가 하나만 있어야한다고 말한다.)
+                -   그래서 NestJS에서는 현재 환경에 따라 나누어 다른 `.env`를 적용할 수 있다.
+                -   예시를 들어보면
+                    -   `root` 경로에 `.env.development`와 `.env.test`를 생성하고 각 환경의 따라 DB 이름을 아래와 같이 정의해준다.
+                        -   `.env.development`
+                            ```env
+                            DB_NAME=db.sqlite
+                            ```
+                        -   `.env.test`
+                            ```env
+                            DB_NAME=test.sqlite
+                            ```
+                    -   이후 `@nestjs/config`에서 제공해주는 `ConfigModule`과 `ConfigService`를 이용하여 `AppModule`에 적용해준다.
+                        -   `ConfigModule`은 상황에 따라 어떤 `.env`를 읽어야하는지를 알려주는 기능을 한다.
+                            -   아래와 같이 `AppModule`의 `@Module` decorator에 import해준다.
+                                ```javascript
+                                @Module({
+                                    imports: [
+                                        ConfigModule.forRoot({
+                                            isGlobal: true, // global하게 적용시킬것이기떄문
+                                            envFilePath: `.env.${process.env.NODE_ENV}`, // 현재 환경에 맞게 .env를 가져오게함
+                                        }),
+                                        TypeOrmModule.forRoot({
+                                            type: "sqlite",
+                                            database: "db.sqlite",
+                                            entities: [User, Report],
+                                            synchronize: true,
+                                        }),
+                                        UsersModule,
+                                        ReportsModule,
+                                    ],
+                                    controllers: [AppController],
+                                    providers: [
+                                        AppService,
+                                        {
+                                            provide: APP_PIPE,
+                                            useValue: new ValidationPipe({
+                                                whitelist: true,
+                                            }),
+                                        },
+                                    ],
+                                })
+                                ```
+                        -   `ConfigService`는 알려준 `.env`를 읽고 app에 제공해주는 기능을 한다.
+                            -   아래와 같이 기존의 `TypeOrmModule.forRoot` 구문을 `TypeOrmModule.forRootAsync`로 변경하고 `ConfigService`를 사용할 수 있도록 리펙토링을 한다.
+                                ```javascript
+                                @Module({
+                                    imports: [
+                                        ConfigModule.forRoot({
+                                            isGlobal: true, // global하게 적용시킬것이기떄문
+                                            envFilePath: `.env.${process.env.NODE_ENV}`, // 현재 환경에 맞게 .env를 가져오게함
+                                        }),
+                                        TypeOrmModule.forRootAsync({
+                                            inject: [ConfigService], // ConfigService를 DI 시킴
+                                            useFactory: (config: ConfigService) => {
+                                                // config에 읽어온 .env의 내용이 들어있음
+                                                return {
+                                                    type: "sqlite",
+                                                    database: config.get<string>("DB_NAME"),
+                                                    entities: [User, Report],
+                                                    synchronize: true,
+                                                };
+                                            },
+                                        }),
+                                        UsersModule,
+                                        ReportsModule,
+                                    ],
+                                    controllers: [AppController],
+                                    providers: [
+                                        AppService,
+                                        {
+                                            provide: APP_PIPE,
+                                            useValue: new ValidationPipe({
+                                                whitelist: true,
+                                            }),
+                                        },
+                                    ],
+                                })
+                                ```
+                    -   추가로 `process.env.NODE_ENV`의 값을 잘 읽어올 수 있도록 `package.json`에서 script에 `NODE_ENV`를 주입한다.
+                        ```json
+                        "scripts": {
+                            "build": "nest build",
+                            "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+                            "start": "nest start" ==> "NODE_ENV=development nest start",
+                            "start:dev": "nest start --watch", ==> "NODE_ENV=development nest start --watch"
+                            "start:debug": "nest start --debug --watch" ==> "NODE_ENV=development nest start --debug --watch",
+                            "start:prod": "node dist/main",
+                            "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+                            "test": "jest" ==> "NODE_ENV=test jest",
+                            "test:watch": "jest --watch --maxWorkers=1"  ==> "NODE_ENV=test jest --watch --maxWorkers=1",
+                            "test:cov": "jest --coverage" ==> "NODE_ENV=test jest --coverage",
+                            "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand" ==> "NODE_ENV=test node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+                            "test:e2e": "jest --config ./test/jest-e2e.json" ==> "NODE_ENV=test jest --config ./test/jest-e2e.json"
+                        },
+                        ```
+
+            -   그러나 이렇게 DB를 분리하고 E2E Test를 진행하면 `database is locked` error를 만날 수 있다.
+
+                ```shell
+                [Nest] 93475  - 2024. 01. 10. 오후 10:00:42   ERROR [TypeOrmModule] Unable to connect to the database. Retrying (1)...
+                QueryFailedError: SQLITE_BUSY: database is locked
+                    at Statement.handler (/Users/kim-yuhyeon/Desktop/NestJS_Depp_Dive/mycarvalue/src/driver/sqlite/SqliteQueryRunner.ts:134:29)
+                    at Statement.replacement (/Users/kim-yuhyeon/Desktop/NestJS_Depp_Dive/mycarvalue/node_modules/sqlite3/lib/trace.js:25:27)
+                    at Statement.replacement (/Users/kim-yuhyeon/Desktop/NestJS_Depp_Dive/mycarvalue/node_modules/sqlite3/lib/trace.js:25:27)
+                ```
+
+                -   위 error는 Jest에서는 1개의 DB만을 허용하고있으나 이전에 저장하던 DB와의 충돌이 첫번째 이유이고, 두번째 이유는 여러 test를 동시다발적으로 실행하려해서 나타나는 현상이다.
+                -   이를 해결하기 위해서는 간단하게 Jest에 동시에 test를 진행하지말라고 `package.json`의 scripts에서 `--maxWorkers=1`을 정의해주면된다.
+
+                    ```json
+                    "test:e2e": "NODE_ENV=test jest --config ./test/jest-e2e.json --maxWorkers=1"
+                    ```
+
+            -   그럼 이제 마지막으로 test를 실행할 때마다 DB를 어떻게 삭제할 수 있을까?
+
+                -   이는 Jest의 기능을 이용해서 test가 실행되기 전에 삭제할 수 있다.
+                -   `test` 폴더에 `setup.ts`를 생성하고 아래와 같이 `global.beforeEach`를 이용하여 `test.sqlite`를 삭제하는 기능을 작성한다.(DB가 없을수 있으니 `try-catch` 구문으로 작성)
+
+                    ```javascript
+                    import { rm } from "fs/promises";
+                    import { join } from "path";
+
+                    global.beforeEach(async () => {
+                        try {
+                            await rm(join(__dirname, "..", "test.sqlite"));
+                        } catch (error) {
+                            console.log("Test DB가 없습니다.");
+                        }
+                    });
+                    ```
+
+                -   이후 `jest-e2e.json`또는 `package.json`에서 아래 구문을 추가한다.(아래 내용을 env가 설정된 후에 `setup.ts`를 실행시키라는 의미이다.)
+                    ```json
+                    "setupFilesAfterEnv": ["<rootDir>/setup.ts"]
+                    ```
+
+            -   이렇게하면 DB 분리가 완료된다.
 
 ### REST Client 사용법(VSCode extension)
 
