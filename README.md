@@ -881,7 +881,9 @@
 
         -   controller별로 interceptor를 적용하는것, global interceptor를 적용하는것 모두 장단점이 있고 개인의 취향이니 선택적으로 사용하면 될 듯
 
-    -   이제 마지막 작업으로 권한이 없으면 request를 거부하는 `Guard`를 적용할 차례이다.
+-   Guard
+
+    -   권한이 없으면 request를 거부하는 `Guard`를 적용할 차례이다.
         -   `Guard`는 app의 모든 접근 전, controller 접근 전, handler 접근 전에 모두 적용할 수 있다.
     -   `AuthGuard`를 아래와 같이 `CanActivate`를 implement하는 class로 만들어주고, `canActivate`에 조건을 return해주면된다.(대체로 boolean을 return함)
 
@@ -937,6 +939,14 @@
                 "statusCode": 403
             }
             ```
+
+-   Test
+    -   App에 구현되어있는 모든 기능들의 test case를 작성하면 app의 신뢰도가 올라간다.
+    -   Unit Test(단위 테스트)
+        -   NestJS에서 unit test는 service와 controller 단위로 test가 이루어진다.
+        -   DI(의존성 주입) 되어있는 부분들은 모두 가상의 unit으로 구현 후 test module에 provider로 넣어줘야함
+        -   Unit Test에서는 decorator를 사용할 수 없다.(decorator까지 test하기 위해서는 E2E Test를 진행하여야한다.)
+    -   E2E Test
 
 ### REST Client 사용법(VSCode extension)
 
