@@ -23,6 +23,9 @@ export class User {
     @OneToMany(() => Report, (report) => report.user)
     reports: Report[];
 
+    @Column({ default: false })
+    admin: boolean;
+
     // 새로운 user가 생성될때마다 아래 함수가 실행됨
     @AfterInsert()
     logInsert() {
