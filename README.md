@@ -1251,7 +1251,7 @@
                     });
                     ```
 
-                -   이후 `jest-e2e.json`또는 `package.json`에서 아래 구문을 추가한다.(아래 내용을 env가 설정된 후에 `setup.ts`를 실행시키라는 의미이다.)
+                -   이후 `jest-e2e.json`또는 `package.json`에서 아래 구문을 추가한다.(아래 내용은 env가 설정된 후에 `setup.ts`를 실행시키라는 의미이다.)
                     ```json
                     "setupFilesAfterEnv": ["<rootDir>/setup.ts"]
                     ```
@@ -1278,24 +1278,3 @@
     ### get a particular message
     GET http://localhost:3000/messages/123
     ```
-
-### Sample project(my car value)
-
--   중고차의 가격을 확인하고 판매할 수 있는 간단한 app을 만들어 볼 예정
--   API 설계
-    |Method|Route|Body or QueryString|설명|
-    |------|---|---|---|
-    |Post|/auth/signup|Body - {email, password}|회원가입|
-    |Post|/auth/signin|Body - {email, password}|로그인|
-    |Get|/reports|QueryString - make, model, year, mileage, longitude, latitude|자동차의 정보를 받아 시세 확인|
-    |Post|/reports|Body - {make, model, year, mileage, longitude, latitude, price}|자동차를 판매하기 위해 자동차 정보 및 가격 올리기|
-    |Patch|/reports/:id|Body - {approved}|사용자가 제출한 자동차 정보를 검토하여 승인하거나, 반려처리함|
-
--   Module 설계
-
-    -   API 설계 내용을 보면 Users, Reports 총 2개의 module이 필요함을 알 수 있음
-    -   2개의 module 모두 controller, service, repository가 필요함
-
--   Database
-    -   이번 프로젝트는 TypeORM을 한번 써보기위해 SQLite를 사용해보려고한다.
-    -   추후에 Postgres로 변동 될 여지는 있음
