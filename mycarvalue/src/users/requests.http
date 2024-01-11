@@ -15,7 +15,7 @@ Content-Type: application/json
     "email": "test4@test.com",
     "password": "12341234"
 }
-
+ 
 ### Find a paricular user with a given id
 GET http://localhost:3000/auth/2
 

@@ -1,8 +1,9 @@
+# report 생성
 POST http://localhost:3000/reports
 Content-Type: application/json
 
 {
-    "make" : "테팔",
+    "make" : "toyota",
     "model" : "후라이팬2022",
     "year" : 2022,
     "mile" : 123,
@@ -10,3 +11,14 @@ Content-Type: application/json
     "lat" : 22,
     "price" : 30000
 }
+
+### report approved 수정
+PATCH http://localhost:3000/reports/1
+Content-Type: application/json
+
+{
+    "approved": false
+}
+
+### Get estimate
+GET  http://localhost:3000/reports?make=toyota&model=corolla&year=2023&lat=0&lng=0&mile=123 
