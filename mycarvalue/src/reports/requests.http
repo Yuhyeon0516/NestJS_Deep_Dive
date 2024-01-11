@@ -1,0 +1,12 @@
+POST http://localhost:3000/reports
+Content-Type: application/json
+
+{
+    "make" : "테팔",
+    "model" : "후라이팬2022",
+    "year" : 2022,
+    "mile" : 123,
+    "lng" : 139,
+    "lat" : 22,
+    "price" : 30000
+}
