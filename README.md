@@ -356,7 +356,7 @@
                     type: "sqlite", // database의 종류
                     database: "db.sqlite", // project root에 생성할 database의 이름
                     entities: [], // project에 사용되는 entity
-                    synchronize: true,
+                    synchronize: true, // Entity가 DB에 호환되도록 자동으로 변경
                 }),
             ],
             ...
@@ -434,6 +434,8 @@
                         constructor(@InjectRepository(User) private repo: Repository<User>) {}
                     }
                     ```
+
+    ***
 
 -   데이터 직렬화
 
@@ -589,6 +591,8 @@
                 return UseInterceptors(new SerializeInterceptor(dto));
             }
             ```
+
+    ***
 
 -   Authentication
 
@@ -881,6 +885,8 @@
 
         -   controller별로 interceptor를 적용하는것, global interceptor를 적용하는것 모두 장단점이 있고 개인의 취향이니 선택적으로 사용하면 될 듯
 
+    ***
+
 -   Guard
 
     -   권한이 없으면 request를 거부하는 `Guard`를 적용할 차례이다.
@@ -939,6 +945,8 @@
                 "statusCode": 403
             }
             ```
+
+    ***
 
 -   Test
 
@@ -1257,6 +1265,117 @@
                     ```
 
             -   이렇게하면 DB 분리가 완료된다.
+
+    ***
+
+-   배포
+
+    -   Product 환경에 배포를 하는것은 정말로 쉽지않다.
+    -   배포할 때는 `SQLite`가 아닌 `PostgreSQL`로 바꾸고 배포할 것이고, Heroku를 통한 배포를 진행해보려한다.(AWS를 사용하고싶었지만 유료인지라...)
+    -   일단 첫번쨰로 cookie 사용을 위해 `express-session`를 middleware로 사용하였는데, 그 때 입력된 `secret`값은 외부로 노출되면 안되기때문에 `.env`에 별도로 저장시켜야한다.
+
+        -   일단 `.env`에 아래와 같이 `COOKIE_SECRET`으로 정의를 해주었다.
+            `COOKIE_SECRET=example`
+        -   그 다음 `AppModule`에서 `ConfigService`를 이용하여 `.env`를 읽어야하기 때문에 아래와 같이 리펙토링한다.
+
+            ```javascript
+            export class AppModule {
+                constructor(private configService: ConfigService) {}
+
+                configure(consumer: MiddlewareConsumer) {
+                    consumer.apply(cookieParser()).forRoutes("*");
+                    consumer
+                        .apply(
+                            session({
+                                secret: this.configService.get("COOKIE_SECRET"),
+                                resave: false,
+                                saveUninitialized: false,
+                            }),
+                        )
+                        .forRoutes("*");
+                }
+            }
+            ```
+
+    -   이제 DB를 `SQLite`에서 `PostgreSQL`로 변경해보려한다.
+
+        -   일단 시작하기전에 미리 지금 느낀점은 처음부터 불편해도 `PostgreSQL`로 시작하자.
+        -   여기서는 `TypeORM`에서 많은 error가 발생하게된다.
+        -   배포를 진행할 때에는 `TypeORM`의 `synchronize` flag를 `true`로 두고하면 DB손실의 위험성이 있다. 개발을 진행할 때는 DB가 지속적으로 변동 가능성이 있기에 편의성을 위해 `true`로 두지만 배포하기전 `false`로 변경하고 배포하는것을 권장하고있다.(`false`로 변경하면 Entity가 아무리 추가되고 삭제되어도 DB의 구조는 변경되지 않는다.)
+        -   DB의 구조를 진짜로 추가하거나 삭제해야할 상황이 발생했을때는 `migration` 기능을 사용하면된다.
+        -   `migration`은 `TypeORM`에서도 제공을 해준다. 그러나 지금까지는 `TypeORM`이 `NestJS`와 호환성이 굉장히 좋은것으로 보였으나 여기서부터는 정말 최악에 가까워진다.(?)
+        -   일단 PostgreSQL admin에서 app을 생성해주고 아래와 같이 `SQLite`를 사용하던 부분들을 `PostgreSQL`을 사용할 수 있도록 변경한다.
+
+            -   일단 `pg`를 설치한다.
+
+                `npm install pg`
+
+            -   typeorm config를 별도로 관리하기 위하여 `src/database/typeorm.config.ts`를 생성하여 아래와 같이 config를 셋팅
+
+                ```javascript
+                import { TypeOrmModuleOptions, TypeOrmOptionsFactory } from "@nestjs/typeorm";
+                import { Injectable } from "@nestjs/common";
+
+                @Injectable()
+                export class TypeormConfig implements TypeOrmOptionsFactory {
+                    createTypeOrmOptions(): TypeOrmModuleOptions {
+                        return {
+                            type: "postgres", // 데이터베이스 종류
+                            url: "", // ex) postgresql://username:password@hostname:port/database
+                            host: "localhost", // 데이터베이스 서버 호스트
+                            port: 5432, // 데이터베이스 포트
+                            username: "postgres",
+                            password: "postgres",
+                            database: "nestjs-study", // 연결할 데이터베이스 이름
+                            synchronize: false, // 스키마 자동 동기화 (production에서는 false)
+                            dropSchema: false, // 애플리케이션 실행시 기존 스키마 삭제 여부
+                            keepConnectionAlive: true, // 애플리케이션 재시작 시 연결 유지
+                            logging: true, // 데이터베이스 쿼리 로깅 여부
+                            entities: [__dirname + "/../**/*.entity{.ts,.js}"], //중요! 엔티티 클래스 경로
+                            extra: {
+                                max: 100,
+                            },
+                        } as TypeOrmModuleOptions;
+                    }
+                }
+                ```
+
+            -   이후 `AppModule`에서 위에 작성한 config를 가져와 새로운 `DataSource`를 initialize해준다.
+                ```javascript
+                @Module({
+                    imports: [
+                        ConfigModule.forRoot({
+                            isGlobal: true, // global하게 적용시킬것이기떄문
+                            envFilePath: `.env.${process.env.NODE_ENV}`, // 현재 환경에 맞게 .env를 가져오게함
+                        }),
+                        TypeOrmModule.forRootAsync({
+                            useClass: TypeormConfig,
+                            dataSourceFactory: async (options: DataSourceOptions) => {
+                                return new DataSource(options).initialize();
+                            },
+                        }),
+                        UsersModule,
+                        ReportsModule,
+                    ],
+                    controllers: [AppController],
+                    providers: [
+                        AppService,
+                        {
+                            provide: APP_PIPE,
+                            useValue: new ValidationPipe({
+                                whitelist: true,
+                            }),
+                        },
+                    ],
+                })
+                ```
+            -   `npm run start:dev` 후 server가 정상적으로 작동하는지 확인(아직 entity 설정이 덜 된 상태라 request는 동작안함)
+            -   `TypeORM` migration 진행 시 entity파일이 TS로 구성되어있다면 과정이 많이 복잡해진다.(https://typeorm.io/using-cli)
+            -   이후 `TypeORM CLI`를 실행하기위해 ts-node를 설치한다.
+
+                `npm install -D ts-node`
+
+---
 
 ### REST Client 사용법(VSCode extension)
 
