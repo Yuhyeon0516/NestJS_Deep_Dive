@@ -28,22 +28,21 @@ export class PostsController {
   // post를 생성한다.
   @Post()
   postPost(
-    @Body('author') author: string,
+    @Body('authorId') authorId: string,
     @Body('title') title: string,
     @Body('content') content: string,
   ) {
-    return this.postsService.createPost(author, title, content);
+    return this.postsService.createPost(+authorId, title, content);
   }
 
   // id와 일치하는 post를 수정한다.
   @Patch(':id')
   patchPost(
     @Param('id') id: string,
-    @Body('author') author?: string,
     @Body('title') title?: string,
     @Body('content') content?: string,
   ) {
-    return this.postsService.updatePost(+id, author, title, content);
+    return this.postsService.updatePost(+id, title, content);
   }
 
   // id와 일치하는 post를 삭제한다.
