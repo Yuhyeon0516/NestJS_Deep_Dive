@@ -8,8 +8,12 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
+import { AccessTokenGuard } from 'src/auth/guard/bearer-token.guard';
+import { User } from 'src/users/decorator/user.decorator';
+import { UsersModel } from 'src/users/entities/users.entity';
 
 @Controller('posts')
 export class PostsController {
@@ -30,15 +34,16 @@ export class PostsController {
 
   // post를 생성한다.
   @Post()
+  @UseGuards(AccessTokenGuard)
   postPost(
-    @Body('authorId') authorId: string,
+    @User('id') userId: number,
     @Body('title') title: string,
     @Body('content') content: string,
     // DefaulltValuePipe는 해당 값에 기본값을 설정해줌
     @Body('isPublic', new DefaultValuePipe(true)) isPublic: boolean,
   ) {
     isPublic;
-    return this.postsService.createPost(+authorId, title, content);
+    return this.postsService.createPost(userId, title, content);
   }
 
   // id와 일치하는 post를 수정한다.
