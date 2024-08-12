@@ -14,6 +14,7 @@ import {
 } from './pipes/password.pipe';
 import { BasicTokenGuard } from './guard/basic-token.guard';
 import { RefreshTokenGuard } from './guard/bearer-token.guard';
+import { RegisterUserDto } from './dto/register-user.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -59,16 +60,13 @@ export class AuthController {
 
   @Post('register/email')
   postRegisterEmail(
-    @Body('email') email: string,
-    @Body('nickname') nickname: string,
-    // 여러 Pipe도 적용 가능
-    @Body('password', new MaxLengthPipe(10), new MinLengthPipe(8))
-    password: string,
+    // @Body('email') email: string,
+    // @Body('nickname') nickname: string,
+    // // 여러 Pipe도 적용 가능
+    // @Body('password', new MaxLengthPipe(10), new MinLengthPipe(8))
+    // password: string,
+    @Body() body: RegisterUserDto,
   ) {
-    return this.authService.registerWithEmail({
-      email,
-      nickname,
-      password,
-    });
+    return this.authService.registerWithEmail(body);
   }
 }
