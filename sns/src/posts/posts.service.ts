@@ -37,6 +37,15 @@ export class PostsService {
     };
   }
 
+  async generatePosts(userId: number) {
+    for (let i = 0; i < 100; i++) {
+      await this.createPost(userId, {
+        title: `Title Test ${i}`,
+        content: `Content Test ${i}`,
+      });
+    }
+  }
+
   async getPostById(id: number) {
     const post = await this.postsRepository.findOne({
       where: {
