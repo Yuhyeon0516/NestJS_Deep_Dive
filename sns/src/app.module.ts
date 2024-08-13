@@ -9,17 +9,29 @@ import { UsersModel } from './users/entities/users.entity';
 import { AuthModule } from './auth/auth.module';
 import { CommonModule } from './common/common.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ConfigModule } from '@nestjs/config';
+import {
+  ENV_DATABASE_HOST_KEY,
+  ENV_DATABASE_PORT_KEY,
+  ENV_POSTGRES_DB_KEY,
+  ENV_POSTGRES_PASSWORD_KEY,
+  ENV_POSTGRES_USER_KEY,
+} from './common/const/env-keys.const';
 
 @Module({
   imports: [
     PostsModule,
+    ConfigModule.forRoot({
+      envFilePath: '.env',
+      isGlobal: true,
+    }),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: '127.0.0.1',
-      port: 5432,
-      username: 'postgres',
-      password: 'postgres',
-      database: 'postgres',
+      host: process.env[ENV_DATABASE_HOST_KEY],
+      port: parseInt(process.env[ENV_DATABASE_PORT_KEY]),
+      username: process.env[ENV_POSTGRES_USER_KEY],
+      password: process.env[ENV_POSTGRES_PASSWORD_KEY],
+      database: process.env[ENV_POSTGRES_DB_KEY],
       entities: [PostsModel, UsersModel],
       synchronize: true,
     }),
