@@ -9,7 +9,6 @@ import { emailValidationMessage } from 'src/common/validation-message/email-vali
 import { Exclude, Expose } from 'class-transformer';
 
 @Entity()
-@Exclude()
 export class UsersModel extends BaseModel {
   @Column({
     unique: true,
