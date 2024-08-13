@@ -17,10 +17,11 @@ import {
   ENV_POSTGRES_PASSWORD_KEY,
   ENV_POSTGRES_USER_KEY,
 } from './common/const/env-keys.const';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { PUBLIC_FORDER_PATH } from './common/const/path.const';
 
 @Module({
   imports: [
-    PostsModule,
     ConfigModule.forRoot({
       envFilePath: '.env',
       isGlobal: true,
@@ -35,6 +36,16 @@ import {
       entities: [PostsModel, UsersModel],
       synchronize: true,
     }),
+    ServeStaticModule.forRoot({
+      // 아래와 같이 public 폴더의 경로를 설정하고 4022.jpg라는 이미지를 가져오려면
+      // http://localhost:3000/public/posts/4022.jpg가 아닌
+      // http://localhost:3000/posts/4022.jpg가 이렇게 됨
+      rootPath: PUBLIC_FORDER_PATH,
+      // 그래서 아래와 같이 public을 추가하면
+      // http://localhost:3000/public//posts/4022.jpg로 됨
+      serveRoot: '/public',
+    }),
+    PostsModule,
     UsersModule,
     AuthModule,
     CommonModule,
