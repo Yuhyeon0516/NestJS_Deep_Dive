@@ -7,7 +7,12 @@ async function bootstrap() {
 
   app.useGlobalPipes(
     new ValidationPipe({
+      // data의 변환을 허용
       transform: true,
+      transformOptions: {
+        // transform이 될 때 class-validator를 기반으로 변환
+        enableImplicitConversion: true,
+      },
     }),
   );
   await app.listen(3000);
