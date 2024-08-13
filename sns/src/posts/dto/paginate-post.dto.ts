@@ -2,6 +2,10 @@ import { IsIn, IsNumber, IsOptional } from 'class-validator';
 import { FindOptionsOrderValue } from 'typeorm';
 
 export class PaginatePostDto {
+  @IsNumber()
+  @IsOptional()
+  page?: number;
+
   // 이전 마지막 데이터의 id
   // 이 id보다 높은 id를 가져오기
   @IsNumber()

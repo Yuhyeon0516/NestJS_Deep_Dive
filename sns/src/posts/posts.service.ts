@@ -21,8 +21,28 @@ export class PostsService {
       },
     });
   }
-
   async paginatePosts(dto: PaginatePostDto) {
+    if (dto.page) return this.pagePaginatePosts(dto);
+
+    return this.cursorPaginatePosts(dto);
+  }
+
+  async pagePaginatePosts(dto: PaginatePostDto) {
+    const [posts, total] = await this.postsRepository.findAndCount({
+      skip: dto.take * (dto.page - 1),
+      order: {
+        createdAt: dto.order__createdAt,
+      },
+      take: dto.take,
+    });
+
+    return {
+      data: posts,
+      total,
+    };
+  }
+
+  async cursorPaginatePosts(dto: PaginatePostDto) {
     const where: FindOptionsWhere<PostsModel> = {};
 
     if (dto.where__id_less_than) where.id = LessThan(dto.where__id_less_than);
