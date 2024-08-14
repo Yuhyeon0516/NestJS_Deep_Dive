@@ -19,6 +19,7 @@ import {
 } from './common/const/env-keys.const';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { PUBLIC_FORDER_PATH } from './common/const/path.const';
+import { ImageModel } from './common/entity/image.entity';
 
 @Module({
   imports: [
@@ -33,7 +34,7 @@ import { PUBLIC_FORDER_PATH } from './common/const/path.const';
       username: process.env[ENV_POSTGRES_USER_KEY],
       password: process.env[ENV_POSTGRES_PASSWORD_KEY],
       database: process.env[ENV_POSTGRES_DB_KEY],
-      entities: [PostsModel, UsersModel],
+      entities: [PostsModel, UsersModel, ImageModel],
       synchronize: true,
     }),
     ServeStaticModule.forRoot({
