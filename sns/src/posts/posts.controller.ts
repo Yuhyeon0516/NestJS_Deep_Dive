@@ -35,6 +35,8 @@ export class PostsController {
   // 모든 post를 가져온다.
   @Get()
   @UseInterceptors(LogInterceptor)
+  // 아래와 같이 route 단위로도 exception filter를 적용할 수 있음
+  // @UseFilters(HttpExceptionFilter)
   getPosts(@Query() query: PaginatePostDto) {
     return this.postsService.paginatePosts(query);
   }
