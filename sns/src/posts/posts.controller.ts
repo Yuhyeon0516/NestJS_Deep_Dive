@@ -3,13 +3,13 @@ import {
   Controller,
   Delete,
   Get,
-  InternalServerErrorException,
   Param,
   ParseIntPipe,
   Patch,
   Post,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { AccessTokenGuard } from 'src/auth/guard/bearer-token.guard';
@@ -19,19 +19,22 @@ import { UpdatePostDto } from './dto/update-post.dto';
 import { PaginatePostDto } from './dto/paginate-post.dto';
 import { UsersModel } from 'src/users/entities/users.entity';
 import { ImageModelType } from 'src/common/entity/image.entity';
-import { DataSource } from 'typeorm';
+import { QueryRunner as QR } from 'typeorm';
 import { PostImagesService } from './image/images.service';
+import { LogInterceptor } from 'src/common/interceptor/log.interceptor';
+import { TransactionInterceptor } from 'src/common/interceptor/transaction.interceptor';
+import { QueryRunner } from 'src/common/decorator/query-runner.decorator';
 
 @Controller('posts')
 export class PostsController {
   constructor(
     private readonly postsService: PostsService,
     private readonly postImagesService: PostImagesService,
-    private readonly dataSource: DataSource,
   ) {}
 
   // 모든 post를 가져온다.
   @Get()
+  @UseInterceptors(LogInterceptor)
   getPosts(@Query() query: PaginatePostDto) {
     return this.postsService.paginatePosts(query);
   }
@@ -66,49 +69,28 @@ export class PostsController {
   // rollback -> 원상복구
   @Post()
   @UseGuards(AccessTokenGuard)
+  @UseInterceptors(TransactionInterceptor)
   async postPost(
     @User('id') userId: number,
     @Body() body: CreatePostDto,
-    // DefaulltValuePipe는 해당 값에 기본값을 설정해줌
-    // @Body('isPublic', new DefaultValuePipe(true)) isPublic: boolean,
+    @QueryRunner() qr: QR,
   ) {
-    // 트랜잭션과 관련된 모든 쿼리를 담당할 쿼리 러너를 생성한다.
-    const qr = this.dataSource.createQueryRunner();
-
-    // 쿼리 러너에 연결한다.
-    await qr.connect();
-    // 쿼리 러너에서 트랜잭션을 시작한다.
-    // 이 시점부터 같은 쿼리 러너를 사용하면
-    // 트랜잭션 안에서 데이터베이스 액션을 실행 할 수 있다.
-    await qr.startTransaction();
-
     // 로직 실행
-    try {
-      const post = await this.postsService.createPost(userId, body, qr);
+    const post = await this.postsService.createPost(userId, body, qr);
 
-      for (let i = 0; i < body.images.length; i++) {
-        await this.postImagesService.createPostImage(
-          {
-            post,
-            order: i,
-            path: body.images[i],
-            type: ImageModelType.POST_IMAGE,
-          },
-          qr,
-        );
-      }
-
-      await qr.commitTransaction();
-
-      return this.postsService.getPostById(post.id);
-    } catch (error) {
-      // 어떤 에러든 에러가 나오면
-      // 트랜잭션을 종료하고 원래 상태로 되돌림
-      await qr.rollbackTransaction();
-      throw new InternalServerErrorException('에러가 발생하였습니다.');
-    } finally {
-      await qr.release();
+    for (let i = 0; i < body.images.length; i++) {
+      await this.postImagesService.createPostImage(
+        {
+          post,
+          order: i,
+          path: body.images[i],
+          type: ImageModelType.POST_IMAGE,
+        },
+        qr,
+      );
     }
+
+    return this.postsService.getPostById(post.id, qr);
   }
 
   // id와 일치하는 post를 수정한다.
