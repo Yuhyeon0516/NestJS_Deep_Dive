@@ -27,6 +27,9 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { PUBLIC_FORDER_PATH } from './common/const/path.const';
 import { ImageModel } from './common/entity/image.entity';
 import { LogMiddleware } from './common/middleware/log.middleware';
+import { ChatsModule } from './chats/chats.module';
+import { ChatsModel } from './chats/entity/chats.entity';
+import { MessagesModel } from './chats/messages/entity/messages.entity';
 
 @Module({
   imports: [
@@ -41,7 +44,7 @@ import { LogMiddleware } from './common/middleware/log.middleware';
       username: process.env[ENV_POSTGRES_USER_KEY],
       password: process.env[ENV_POSTGRES_PASSWORD_KEY],
       database: process.env[ENV_POSTGRES_DB_KEY],
-      entities: [PostsModel, UsersModel, ImageModel],
+      entities: [PostsModel, UsersModel, ImageModel, ChatsModel, MessagesModel],
       synchronize: true,
     }),
     ServeStaticModule.forRoot({
@@ -57,6 +60,7 @@ import { LogMiddleware } from './common/middleware/log.middleware';
     UsersModule,
     AuthModule,
     CommonModule,
+    ChatsModule,
   ],
   controllers: [AppController],
   providers: [
