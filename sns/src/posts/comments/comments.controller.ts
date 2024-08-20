@@ -30,4 +30,9 @@ export class CommentsController {
   ) {
     return this.commentsService.paginateComments(dto, postId);
   }
+
+  @Get(':commentId')
+  getComment(@Param('commentId', ParseIntPipe) id: number) {
+    return this.commentsService.getCommentById(id);
+  }
 }
