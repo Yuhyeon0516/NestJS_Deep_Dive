@@ -39,6 +39,7 @@ import { UsersModel } from 'src/users/entities/users.entity';
   }),
 )
 @UseFilters(SocketCatchHttpExceptionFilter)
+@UseGuards(SocketBearerTokenGuard)
 @WebSocketGateway({
   // ws://localhost:3000/chats
   namespace: 'chats',
@@ -62,7 +63,7 @@ export class ChatsGateway implements OnGatewayConnection {
   async sendMessage(
     @MessageBody()
     dto: CreateMessagesDto,
-    @ConnectedSocket() socket: Socket,
+    @ConnectedSocket() socket: Socket & { user: UsersModel },
   ) {
     // room에 접속되어있는 모든 사용자에게 메세지를 보냄
     // this.server
@@ -80,7 +81,10 @@ export class ChatsGateway implements OnGatewayConnection {
       });
     }
 
-    const message = await this.messagesService.createMessage(dto);
+    const message = await this.messagesService.createMessage(
+      dto,
+      socket.user.id,
+    );
 
     socket
       .to(message.chat.id.toString())
@@ -108,7 +112,6 @@ export class ChatsGateway implements OnGatewayConnection {
   }
 
   @SubscribeMessage('create_chat')
-  @UseGuards(SocketBearerTokenGuard)
   async createChat(
     @MessageBody() data: CreateChatDto,
     @ConnectedSocket() socket: Socket & { user: UsersModel },
