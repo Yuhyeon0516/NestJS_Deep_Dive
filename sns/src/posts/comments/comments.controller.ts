@@ -1,10 +1,28 @@
-import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { PaginateCommentsDto } from './dto/paginate-comments.dto';
+import { AccessTokenGuard } from 'src/auth/guard/bearer-token.guard';
+import { CreateCommentDto } from './dto/create-comment.dto';
+import { User } from 'src/users/decorator/user.decorator';
+import { PostsService } from '../posts.service';
+import { UsersModel } from 'src/users/entity/users.entity';
 
 @Controller('posts/:postId/comments')
 export class CommentsController {
-  constructor(private readonly commentsService: CommentsService) {}
+  constructor(
+    private readonly commentsService: CommentsService,
+    private readonly postsService: PostsService,
+  ) {}
 
   /**
    * 1. entity 생성
@@ -34,5 +52,20 @@ export class CommentsController {
   @Get(':commentId')
   getComment(@Param('commentId', ParseIntPipe) id: number) {
     return this.commentsService.getCommentById(id);
+  }
+
+  @Post()
+  @UseGuards(AccessTokenGuard)
+  async postComment(
+    @User() user: UsersModel,
+    @Param('postId', ParseIntPipe) postId: number,
+    @Body() body: CreateCommentDto,
+  ) {
+    const post = await this.postsService.getPostById(postId);
+
+    if (!post)
+      throw new BadRequestException(`id: ${postId} post는 존재하지 않습니다.`);
+
+    return this.commentsService.createComment(user, post, body);
   }
 }
