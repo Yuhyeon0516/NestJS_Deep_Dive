@@ -13,7 +13,25 @@ import { ChatsService } from './chats.service';
 import { EnterChatDto } from './dto/enter-chat.dto';
 import { CreateMessagesDto } from './messages/dto/create-message.dto';
 import { ChatsMessagesService } from './messages/messages.service';
+import { UseFilters, UsePipes, ValidationPipe } from '@nestjs/common';
+import { SocketCatchHttpExceptionFilter } from 'src/common/exception-filter/socket-catch-http.exception-filter';
 
+@UsePipes(
+  new ValidationPipe({
+    // data의 변환을 허용
+    transform: true,
+    transformOptions: {
+      // transform이 될 때 class-validator를 기반으로 변환
+      enableImplicitConversion: true,
+    },
+    // validation decorator가 없는 property는 생략
+    // 즉 미리 정의한 dto에 해당되는 것만 입력되게 됨
+    whitelist: true,
+    // whitelist에 해당되지 않는 값이 있다면 error를 발생시킴
+    forbidNonWhitelisted: true,
+  }),
+)
+@UseFilters(SocketCatchHttpExceptionFilter)
 @WebSocketGateway({
   // ws://localhost:3000/chats
   namespace: 'chats',
