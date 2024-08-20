@@ -2,9 +2,11 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -16,6 +18,7 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { User } from 'src/users/decorator/user.decorator';
 import { PostsService } from '../posts.service';
 import { UsersModel } from 'src/users/entity/users.entity';
+import { UpdateCommentDto } from './dto/update-comment.dto';
 
 @Controller('posts/:postId/comments')
 export class CommentsController {
@@ -67,5 +70,13 @@ export class CommentsController {
       throw new BadRequestException(`id: ${postId} post는 존재하지 않습니다.`);
 
     return this.commentsService.createComment(user, post, body);
+  }
+
+  @Patch(':commentId')
+  patchComment(
+    @Param('commentId', ParseIntPipe) commentId: number,
+    @Body() body: UpdateCommentDto,
+  ) {
+    return this.commentsService.updateComment(commentId, body);
   }
 }
