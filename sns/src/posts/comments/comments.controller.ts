@@ -1,5 +1,6 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { CommentsService } from './comments.service';
+import { PaginateCommentsDto } from './dto/paginate-comments.dto';
 
 @Controller('posts/:postId/comments')
 export class CommentsController {
@@ -21,4 +22,12 @@ export class CommentsController {
    * 5. patch(':commentId') 특정 comment 업데이트 기능
    * 6. delete(':commentId) 특정 comment 삭제
    */
+
+  @Get()
+  getComments(
+    @Query() dto: PaginateCommentsDto,
+    @Param('postId', ParseIntPipe) postId: number,
+  ) {
+    return this.commentsService.paginateComments(dto, postId);
+  }
 }
