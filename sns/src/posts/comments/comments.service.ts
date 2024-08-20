@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CommonService } from 'src/common/common.service';
 import { CommentsModel } from './entity/comments.entity';
@@ -57,6 +61,14 @@ export class CommentsService {
   }
 
   async updateComment(commentId: number, dto: UpdateCommentDto) {
+    const comment = await this.commentsRepository.findOne({
+      where: {
+        id: commentId,
+      },
+    });
+
+    if (!comment) throw new NotFoundException('comment를 찾을 수 없습니다.');
+
     const prevComment = await this.commentsRepository.preload({
       id: commentId,
       ...dto,
@@ -64,5 +76,19 @@ export class CommentsService {
     const newComment = await this.commentsRepository.save(prevComment);
 
     return newComment;
+  }
+
+  async deleteComment(commentId: number) {
+    const comment = await this.commentsRepository.findOne({
+      where: {
+        id: commentId,
+      },
+    });
+
+    if (!comment) throw new NotFoundException('comment를 찾을 수 없습니다.');
+
+    await this.commentsRepository.delete(commentId);
+
+    return;
   }
 }

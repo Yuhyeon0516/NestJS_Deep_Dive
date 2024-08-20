@@ -73,10 +73,17 @@ export class CommentsController {
   }
 
   @Patch(':commentId')
+  @UseGuards(AccessTokenGuard)
   patchComment(
     @Param('commentId', ParseIntPipe) commentId: number,
     @Body() body: UpdateCommentDto,
   ) {
     return this.commentsService.updateComment(commentId, body);
+  }
+
+  @Delete(':commentId')
+  @UseGuards(AccessTokenGuard)
+  deleteComment(@Param('commentId', ParseIntPipe) commentId: number) {
+    return this.commentsService.deleteComment(commentId);
   }
 }
