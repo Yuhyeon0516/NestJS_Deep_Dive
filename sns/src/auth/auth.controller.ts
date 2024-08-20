@@ -11,7 +11,7 @@ import {
   MaxLengthPipe,
   MinLengthPipe,
   PasswordPipe,
-} from './pipes/password.pipe';
+} from './pipe/password.pipe';
 import { BasicTokenGuard } from './guard/basic-token.guard';
 import { RefreshTokenGuard } from './guard/bearer-token.guard';
 import { RegisterUserDto } from './dto/register-user.dto';
