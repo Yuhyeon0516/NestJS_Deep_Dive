@@ -18,5 +18,6 @@ import { PostImagesService } from './image/images.service';
   ],
   controllers: [PostsController],
   providers: [PostsService, PostImagesService],
+  exports: [PostsService],
 })
 export class PostsModule {}
