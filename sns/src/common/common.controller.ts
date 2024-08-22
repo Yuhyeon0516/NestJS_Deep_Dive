@@ -2,12 +2,10 @@ import {
   Controller,
   Post,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { CommonService } from './common.service';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { AccessTokenGuard } from 'src/auth/guard/bearer-token.guard';
 
 @Controller('common')
 export class CommonController {
@@ -20,7 +18,6 @@ export class CommonController {
    * 그리고 설정해둔 경로에 설정해둔 이름으로 이미지가 저장됨
    */
   @UseInterceptors(FileInterceptor('image'))
-  @UseGuards(AccessTokenGuard)
   postImage(@UploadedFile() file: Express.Multer.File) {
     return {
       fileName: file.filename,

@@ -8,11 +8,9 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
-import { AccessTokenGuard } from 'src/auth/guard/bearer-token.guard';
 import { User } from 'src/users/decorator/user.decorator';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
@@ -21,9 +19,11 @@ import { UsersModel } from 'src/users/entity/users.entity';
 import { ImageModelType } from 'src/common/entity/image.entity';
 import { QueryRunner as QR } from 'typeorm';
 import { PostImagesService } from './image/images.service';
-import { LogInterceptor } from 'src/common/interceptor/log.interceptor';
 import { TransactionInterceptor } from 'src/common/interceptor/transaction.interceptor';
 import { QueryRunner } from 'src/common/decorator/query-runner.decorator';
+import { Roles } from 'src/users/decorator/roles.decorator';
+import { RolesEnum } from 'src/users/const/roles.const';
+import { IsPublic } from 'src/common/decorator/is-public.decorator';
 
 @Controller('posts')
 export class PostsController {
@@ -38,12 +38,12 @@ export class PostsController {
   // @UseInterceptors(LogInterceptor)
   // 아래와 같이 route 단위로도 exception filter를 적용할 수 있음
   // @UseFilters(HttpExceptionFilter)
+  @IsPublic()
   getPosts(@Query() query: PaginatePostDto) {
     return this.postsService.paginatePosts(query);
   }
 
   @Post('random')
-  @UseGuards(AccessTokenGuard)
   async postPostsRandom(@User() user: UsersModel) {
     await this.postsService.generatePosts(user.id);
     return true;
@@ -51,6 +51,7 @@ export class PostsController {
 
   // id에 해당되는 post를 가져온다.
   @Get(':id')
+  @IsPublic()
   // ParseIntPipe는 값을 가져온 후 Int로 변경하여 돌려준다.
   getPost(@Param('id', ParseIntPipe) id: number) {
     return this.postsService.getPostById(id);
@@ -71,7 +72,6 @@ export class PostsController {
   // commit -> 저장
   // rollback -> 원상복구
   @Post()
-  @UseGuards(AccessTokenGuard)
   @UseInterceptors(TransactionInterceptor)
   async postPost(
     @User('id') userId: number,
@@ -107,7 +107,10 @@ export class PostsController {
 
   // id와 일치하는 post를 삭제한다.
   @Delete(':id')
+  @Roles(RolesEnum.ADMIN)
   deletePost(@Param('id', ParseIntPipe) id: number) {
     return this.postsService.deletePost(id);
   }
+
+  // RBAC -> Role Based Access Control
 }
