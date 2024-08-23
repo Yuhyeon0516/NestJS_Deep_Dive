@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
@@ -24,6 +25,7 @@ import { QueryRunner } from 'src/common/decorator/query-runner.decorator';
 import { Roles } from 'src/users/decorator/roles.decorator';
 import { RolesEnum } from 'src/users/const/roles.const';
 import { IsPublic } from 'src/common/decorator/is-public.decorator';
+import { IsPostMineOrAdmin } from './guard/is-post-mine-or-admin.guard';
 
 @Controller('posts')
 export class PostsController {
@@ -97,9 +99,10 @@ export class PostsController {
   }
 
   // id와 일치하는 post를 수정한다.
-  @Patch(':id')
+  @Patch(':postId')
+  @UseGuards(IsPostMineOrAdmin)
   patchPost(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('postId', ParseIntPipe) id: number,
     @Body() body: UpdatePostDto,
   ) {
     return this.postsService.updatePost(id, body);
