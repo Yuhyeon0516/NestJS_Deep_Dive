@@ -25,7 +25,7 @@ import { QueryRunner } from 'src/common/decorator/query-runner.decorator';
 import { Roles } from 'src/users/decorator/roles.decorator';
 import { RolesEnum } from 'src/users/const/roles.const';
 import { IsPublic } from 'src/common/decorator/is-public.decorator';
-import { IsPostMineOrAdmin } from './guard/is-post-mine-or-admin.guard';
+import { IsPostMineOrAdminGuard } from './guard/is-post-mine-or-admin.guard';
 
 @Controller('posts')
 export class PostsController {
@@ -100,7 +100,7 @@ export class PostsController {
 
   // id와 일치하는 post를 수정한다.
   @Patch(':postId')
-  @UseGuards(IsPostMineOrAdmin)
+  @UseGuards(IsPostMineOrAdminGuard)
   patchPost(
     @Param('postId', ParseIntPipe) id: number,
     @Body() body: UpdatePostDto,
