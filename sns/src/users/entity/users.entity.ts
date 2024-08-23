@@ -1,11 +1,4 @@
-import {
-  Column,
-  Entity,
-  JoinTable,
-  ManyToMany,
-  OneToMany,
-  OneToOne,
-} from 'typeorm';
+import { Column, Entity, JoinTable, ManyToMany, OneToMany } from 'typeorm';
 import { RolesEnum } from '../const/roles.const';
 import { PostsModel } from 'src/posts/entity/posts.entity';
 import { BaseModel } from 'src/common/entity/base.entity';
@@ -85,4 +78,13 @@ export class UsersModel extends BaseModel {
 
   @OneToMany(() => CommentsModel, (comment) => comment.author)
   postComments: CommentsModel[];
+
+  // 나를 팔로우 하는 사람들
+  @ManyToMany(() => UsersModel, (user) => user.followees)
+  @JoinTable()
+  followers: UsersModel[];
+
+  // 내가 팔로우 하는 사람들
+  @ManyToMany(() => UsersModel, (user) => user.followers)
+  followees: UsersModel[];
 }
