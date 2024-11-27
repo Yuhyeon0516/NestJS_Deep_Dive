@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Role, User } from 'src/user/entity/user.entity';
 import { Repository } from 'typeorm';
@@ -57,23 +61,27 @@ export class AuthService {
       throw new BadRequestException('토큰의 타입이 잘못되었습니다.');
     }
 
-    const payload = await this.jwtService.verifyAsync(token, {
-      secret: this.configService.get<string>(
-        envVariablesKeys.refreshTokenSecret,
-      ),
-    });
+    try {
+      const payload = await this.jwtService.verifyAsync(token, {
+        secret: this.configService.get<string>(
+          envVariablesKeys.refreshTokenSecret,
+        ),
+      });
 
-    if (isRefreshToken) {
-      if (payload.type !== 'refresh') {
-        throw new BadRequestException('Refresh Token을 입력해주세요.');
+      if (isRefreshToken) {
+        if (payload.type !== 'refresh') {
+          throw new BadRequestException('Refresh Token을 입력해주세요.');
+        }
+      } else {
+        if (payload.type !== 'access') {
+          throw new BadRequestException('Access Token을 입력해주세요.');
+        }
       }
-    } else {
-      if (payload.type !== 'access') {
-        throw new BadRequestException('Access Token을 입력해주세요.');
-      }
+
+      return payload;
+    } catch (error) {
+      throw new UnauthorizedException('토큰이 만료되었습니다.');
     }
-
-    return payload;
   }
 
   async register(rawToken: string) {
