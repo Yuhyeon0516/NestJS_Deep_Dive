@@ -21,6 +21,11 @@ import { GetMoviesDto } from './dto/get-movies.dto';
 import { TransactionInterceptor } from 'src/common/interceptor/transaction.interceptor';
 import { UserId } from 'src/user/decorator/user-id.decorator';
 import { QueryRunner as QR } from 'src/common/decorator/query-runner.decorator';
+import {
+  CacheKey,
+  CacheTTL,
+  CacheInterceptor as CI,
+} from '@nestjs/cache-manager';
 
 @Controller('movie')
 @UseInterceptors(ClassSerializerInterceptor)
@@ -34,6 +39,12 @@ export class MovieController {
   }
 
   @Get('recent')
+  // 이 엔드포인트를 캐싱해버림
+  @UseInterceptors(CI)
+  // 캐시 키를 변경함
+  @CacheKey('getMoviesRecent')
+  // 캐시 TTL을 변경함
+  @CacheTTL(1000)
   getMoviesRecent() {
     return this.movieService.findRecent();
   }
