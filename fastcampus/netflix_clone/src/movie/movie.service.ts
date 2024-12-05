@@ -7,7 +7,7 @@ import { CreateMovieDto } from './dto/create-movie.dto';
 import { UpdateMovieDto } from './dto/update-movie.dto';
 import { Movie } from './entity/movie.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, QueryRunner, Repository } from 'typeorm';
+import { In, QueryRunner, Repository } from 'typeorm';
 import { MovieDetail } from './entity/movie-detail.entity';
 import { Director } from 'src/director/entity/director.entity';
 import { Genre } from 'src/genre/entity/genre.entity';
@@ -33,11 +33,10 @@ export class MovieService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(MovieUserLike)
     private readonly mulRepository: Repository<MovieUserLike>,
-    private readonly datasource: DataSource,
     private readonly commonService: CommonService,
   ) {}
 
-  async findAll(dto: GetMoviesDto) {
+  async findAll(dto: GetMoviesDto, userId?: number) {
     const { title } = dto;
     const qb = this.movieRepository
       .createQueryBuilder('movie')
@@ -51,7 +50,31 @@ export class MovieService {
     // this.commonService.applyPagePaginationParamsToQb(qb, dto);
     const { nextCursor } =
       await this.commonService.applyCursorPaginationParamsToQb(qb, dto);
-    const [data, count] = await qb.getManyAndCount();
+    let [data, count] = await qb.getManyAndCount();
+
+    if (userId) {
+      const movieIds = data.map((d) => d.id);
+      const likedMovies = await this.mulRepository
+        .createQueryBuilder('mul')
+        .leftJoinAndSelect('mul.user', 'user')
+        .leftJoinAndSelect('mul.movie', 'movie')
+        .where('movie.id IN(:...movieIds)', { movieIds })
+        .andWhere('user.id = :userId', { userId })
+        .getMany();
+
+      const likedMovieMap = likedMovies.reduce(
+        (acc, next) => ({
+          ...acc,
+          [next.movie.id]: next.isLike,
+        }),
+        {},
+      );
+
+      data = data.map((d) => ({
+        ...d,
+        likeStatus: d.id in likedMovieMap ? likedMovieMap[d.id] : null,
+      }));
+    }
 
     return {
       data,
