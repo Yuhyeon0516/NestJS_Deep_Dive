@@ -8,6 +8,10 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
+      transformOptions: {
+        // TypeScript의 Type을 기반으로 DTO와 같은 값의 Type을 변경
+        enableImplicitConversion: true,
+      },
     }),
   );
 
