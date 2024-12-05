@@ -20,6 +20,8 @@ import { RBAC } from 'src/auth/decorator/rbac.decorator';
 import { Role } from 'src/user/entity/user.entity';
 import { GetMoviesDto } from './dto/get-movies.dto';
 import { TransactionInterceptor } from 'src/common/interceptor/transaction.interceptor';
+import { UserId } from 'src/user/decorator/user-id.decorator';
+import { QueryRunner as QR } from 'src/common/decorator/query-runner.decorator';
 
 @Controller('movie')
 @UseInterceptors(ClassSerializerInterceptor)
@@ -44,8 +46,8 @@ export class MovieController {
   @Post()
   @RBAC(Role.admin)
   @UseInterceptors(TransactionInterceptor)
-  postMovie(@Body() body: CreateMovieDto, @Request() req) {
-    return this.movieService.create(body, req.queryRunner);
+  postMovie(@Body() body: CreateMovieDto, @QR() qr, @UserId() userId: number) {
+    return this.movieService.create(body, userId, qr);
   }
 
   @Patch(':id')
@@ -53,9 +55,9 @@ export class MovieController {
   patchMovie(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateMovieDto,
-    @Request() req,
+    @QR() qr,
   ) {
-    return this.movieService.update(id, body, req.queryRunner);
+    return this.movieService.update(id, body, qr);
   }
 
   @Delete(':id')
