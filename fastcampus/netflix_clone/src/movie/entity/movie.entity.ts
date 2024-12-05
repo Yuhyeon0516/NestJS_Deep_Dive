@@ -12,6 +12,7 @@ import { MovieDetail } from './movie-detail.entity';
 import { BaseTable } from 'src/common/entity/base-table.entity';
 import { Director } from 'src/director/entity/director.entity';
 import { Genre } from 'src/genre/entity/genre.entity';
+import { Transform } from 'class-transformer';
 
 @Entity()
 export class Movie extends BaseTable {
@@ -46,5 +47,6 @@ export class Movie extends BaseTable {
   director: Director;
 
   @Column()
+  @Transform(({ value }) => `http://localhost:3000/${value}`)
   movieFilePath: string;
 }
