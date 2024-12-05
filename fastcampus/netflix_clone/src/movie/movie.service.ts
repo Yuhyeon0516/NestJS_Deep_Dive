@@ -54,13 +54,16 @@ export class MovieService {
 
     if (userId) {
       const movieIds = data.map((d) => d.id);
-      const likedMovies = await this.mulRepository
-        .createQueryBuilder('mul')
-        .leftJoinAndSelect('mul.user', 'user')
-        .leftJoinAndSelect('mul.movie', 'movie')
-        .where('movie.id IN(:...movieIds)', { movieIds })
-        .andWhere('user.id = :userId', { userId })
-        .getMany();
+      const likedMovies =
+        movieIds.length < 1
+          ? []
+          : await this.mulRepository
+              .createQueryBuilder('mul')
+              .leftJoinAndSelect('mul.user', 'user')
+              .leftJoinAndSelect('mul.movie', 'movie')
+              .where('movie.id IN(:...movieIds)', { movieIds })
+              .andWhere('user.id = :userId', { userId })
+              .getMany();
 
       const likedMovieMap = likedMovies.reduce(
         (acc, next) => ({
