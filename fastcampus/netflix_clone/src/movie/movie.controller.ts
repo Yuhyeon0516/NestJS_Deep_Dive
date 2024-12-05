@@ -12,6 +12,7 @@ import {
   ParseIntPipe,
   Request,
   UploadedFiles,
+  BadRequestException,
 } from '@nestjs/common';
 import { MovieService } from './movie.service';
 import { CreateMovieDto } from './dto/create-movie.dto';
@@ -47,16 +48,33 @@ export class MovieController {
   @RBAC(Role.admin)
   @UseInterceptors(TransactionInterceptor)
   @UseInterceptors(
-    FileFieldsInterceptor([
+    FileFieldsInterceptor(
+      [
+        {
+          name: 'movie',
+          maxCount: 1,
+        },
+        {
+          name: 'poster',
+          maxCount: 2,
+        },
+      ],
       {
-        name: 'movie',
-        maxCount: 1,
+        limits: {
+          fileSize: 20000000,
+        },
+        fileFilter(req, file, callback) {
+          if (file.mimetype !== 'video/mp4') {
+            // false이면 파일 안받음
+            return callback(
+              new BadRequestException('mp4 형식의 파일만 업로드 가능합니다.'),
+              false,
+            );
+          }
+          return callback(null, true);
+        },
       },
-      {
-        name: 'poster',
-        maxCount: 2,
-      },
-    ]),
+    ),
   )
   postMovie(
     @Body() body: CreateMovieDto,
