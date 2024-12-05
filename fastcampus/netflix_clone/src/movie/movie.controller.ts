@@ -11,7 +11,6 @@ import {
   ClassSerializerInterceptor,
   ParseIntPipe,
   Request,
-  UploadedFiles,
   BadRequestException,
   UploadedFile,
 } from '@nestjs/common';
@@ -89,7 +88,7 @@ export class MovieController {
     )
     movie: Express.Multer.File,
   ) {
-    return this.movieService.create(body, req.queryRunner);
+    return this.movieService.create(body, movie.filename, req.queryRunner);
   }
 
   @Patch(':id')
