@@ -1,21 +1,36 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger, LoggerService } from '@nestjs/common';
 import { Cron, SchedulerRegistry } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { readdir, unlink } from 'fs/promises';
 import { join, parse } from 'path';
 import { Movie } from 'src/movie/entity/movie.entity';
 import { Repository } from 'typeorm';
+import { DefaultLogger } from './logger/default.logger';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 
 @Injectable()
 export class TasksService {
+  // private readonly logger = new Logger(TasksService.name);
+
   constructor(
     @InjectRepository(Movie)
     private readonly movieRepository: Repository<Movie>,
     private readonly schedulerRegistry: SchedulerRegistry,
+    // private readonly logger: DefaultLogger,
+    @Inject(WINSTON_MODULE_NEST_PROVIDER)
+    private readonly logger: LoggerService,
   ) {}
 
+  // @Cron('* * * * * *')
   logEverySecond() {
-    console.log('1초마다 실행');
+    // fatal < - > verbose
+    // verbose로 갈 수록 중요도가 낮음
+    this.logger.fatal('Fatal', null, TasksService.name);
+    this.logger.error('Error', null, TasksService.name);
+    this.logger.warn('Warn', TasksService.name);
+    this.logger.log('Log', TasksService.name);
+    this.logger.debug('Debug', TasksService.name);
+    this.logger.verbose('Verbose', TasksService.name);
   }
 
   // @Cron('* * * * * *')
