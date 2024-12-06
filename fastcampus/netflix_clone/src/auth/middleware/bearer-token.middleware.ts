@@ -27,26 +27,30 @@ export class BearerTokenMiddleware implements NestMiddleware {
       return;
     }
 
+    const token = this.validateBearerToken(authHeader);
+
+    const blockedToken = await this.cacheManager.get(`BLOCK_TOKEN_${token}`);
+
+    if (blockedToken) {
+      throw new UnauthorizedException('차단된 토큰입니다.');
+    }
+
+    const tokenKey = `TOKEN_${token}`;
+    const cachedPayload = await this.cacheManager.get(tokenKey);
+
+    if (cachedPayload) {
+      req.user = cachedPayload;
+
+      return next();
+    }
+
+    const decodedPayload = this.jwtService.decode(token);
+
+    if (decodedPayload.type !== 'refresh' && decodedPayload.type !== 'access') {
+      throw new UnauthorizedException('Token Type이 잘못되었습니다.');
+    }
+
     try {
-      const token = this.validateBearerToken(authHeader);
-      const tokenKey = `TOKEN_${token}`;
-      const cachedPayload = await this.cacheManager.get(tokenKey);
-
-      if (cachedPayload) {
-        req.user = cachedPayload;
-
-        return next();
-      }
-
-      const decodedPayload = this.jwtService.decode(token);
-
-      if (
-        decodedPayload.type !== 'refresh' &&
-        decodedPayload.type !== 'access'
-      ) {
-        throw new UnauthorizedException('Token Type이 잘못되었습니다.');
-      }
-
       const payload = await this.jwtService.verifyAsync(token, {
         secret: this.configService.get<string>(
           decodedPayload.type === 'refresh'
