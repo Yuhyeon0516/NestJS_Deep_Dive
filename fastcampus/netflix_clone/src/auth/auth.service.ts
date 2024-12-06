@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -10,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { envVariablesKeys } from 'src/common/const/env.const';
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +19,7 @@ export class AuthService {
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   parseBasicToken(rawToken: string) {
@@ -46,6 +49,23 @@ export class AuthService {
       email,
       password,
     };
+  }
+
+  async tokenBlock(token: string) {
+    const payload = this.jwtService.decode(token);
+
+    const expireDate = +new Date(payload['exp'] * 1000);
+    const now = +Date.now();
+
+    const diffInSeconds = (expireDate - now) / 1000;
+
+    await this.cacheManager.set(
+      `BLOCK_TOKEN_${token}`,
+      payload,
+      Math.max(diffInSeconds * 1000, 1),
+    );
+
+    return true;
   }
 
   async parseBearerToken(rawToken: string, isRefreshToken: boolean) {
