@@ -31,6 +31,8 @@ import { MovieUserLike } from './movie/entity/movie-user-like.entity';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottleInterceptor } from './common/interceptor/throttle.interceptor';
 import { ScheduleModule } from '@nestjs/schedule';
+import { WinstonModule } from 'nest-winston';
+import { format, transports } from 'winston';
 
 @Module({
   imports: [
@@ -76,6 +78,32 @@ import { ScheduleModule } from '@nestjs/schedule';
       isGlobal: true,
     }),
     ScheduleModule.forRoot(),
+    WinstonModule.forRoot({
+      level: 'debug',
+      transports: [
+        new transports.Console({
+          format: format.combine(
+            format.colorize({ all: true }),
+            format.timestamp(),
+            format.printf(
+              (info) =>
+                `[${info.timestamp} ${info.context}] ${info.level} ${info.message}`,
+            ),
+          ),
+        }),
+        new transports.File({
+          dirname: join(process.cwd(), 'logs'),
+          filename: 'logs.log',
+          format: format.combine(
+            format.timestamp(),
+            format.printf(
+              (info) =>
+                `[${info.timestamp} ${info.context}] ${info.level} ${info.message}`,
+            ),
+          ),
+        }),
+      ],
+    }),
   ],
   providers: [
     {
