@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
+import { Cron, SchedulerRegistry } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { readdir, unlink } from 'fs/promises';
 import { join, parse } from 'path';
@@ -11,13 +11,14 @@ export class TasksService {
   constructor(
     @InjectRepository(Movie)
     private readonly movieRepository: Repository<Movie>,
+    private readonly schedulerRegistry: SchedulerRegistry,
   ) {}
 
   logEverySecond() {
     console.log('1초마다 실행');
   }
 
-  @Cron('* * * * * *')
+  // @Cron('* * * * * *')
   async eraseOrphanFiles() {
     const files = await readdir(join(process.cwd(), 'public', 'temp'));
 
@@ -49,7 +50,7 @@ export class TasksService {
     ]);
   }
 
-  @Cron('0 * * * * *')
+  // @Cron('0 * * * * *')
   async calculateMovieLikeCounts() {
     await this.movieRepository.query(`
 UPDATE movie m
@@ -66,5 +67,32 @@ WHERE m.id = mul."movieId" AND mul."isLike" = false
 )
 `,
     );
+  }
+
+  // @Cron('* * * * * *', {
+  //   name: 'printer',
+  // })
+  printer() {
+    console.log('print every seconds');
+  }
+
+  // @Cron('*/5 * * * * *')
+  stopper() {
+    console.log('---stoppper run---');
+
+    const job = this.schedulerRegistry.getCronJob('printer');
+
+    console.log('# Last Date');
+    console.log(job.lastDate());
+    console.log('# Next Date');
+    console.log(job.nextDate());
+    console.log('# Next Dates');
+    console.log(job.nextDates(5));
+
+    if (job.running) {
+      job.stop();
+    } else {
+      job.start();
+    }
   }
 }
