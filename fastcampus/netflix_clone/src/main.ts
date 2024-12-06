@@ -8,7 +8,8 @@ async function bootstrap() {
     logger: false,
   });
   app.enableVersioning({
-    type: VersioningType.URI,
+    type: VersioningType.HEADER,
+    header: 'version',
   });
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
   app.useGlobalPipes(
