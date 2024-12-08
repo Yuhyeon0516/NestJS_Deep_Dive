@@ -7,10 +7,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: false,
   });
-  app.enableVersioning({
-    type: VersioningType.MEDIA_TYPE,
-    key: 'v=',
-  });
+  // app.enableVersioning({
+  //   type: VersioningType.MEDIA_TYPE,
+  //   key: 'v=',
+  // });
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
   app.useGlobalPipes(
     new ValidationPipe({
@@ -23,6 +23,6 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(3000);
+  await app.listen(process.env.PORT || 3000);
 }
 bootstrap();
