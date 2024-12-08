@@ -19,6 +19,8 @@ import { rename } from 'fs/promises';
 import { User } from 'src/user/entity/user.entity';
 import { MovieUserLike } from './entity/movie-user-like.entity';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
+import { ConfigService } from '@nestjs/config';
+import { envVariablesKeys } from 'src/common/const/env.const';
 
 @Injectable()
 export class MovieService {
@@ -33,6 +35,7 @@ export class MovieService {
     private readonly mulRepository: Repository<MovieUserLike>,
     private readonly commonService: CommonService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly configService: ConfigService,
   ) {}
 
   async findRecent() {
@@ -187,10 +190,7 @@ export class MovieService {
       .of(movieId)
       .add(genres.map((genre) => genre.id));
 
-    await rename(
-      join(process.cwd(), tempFolder, createMovieDto.movieFileName),
-      join(process.cwd(), movieFolder, createMovieDto.movieFileName),
-    );
+    await this.renameMovieFile(tempFolder, movieFolder, createMovieDto);
 
     return await qr.manager.findOne(Movie, {
       where: {
@@ -198,6 +198,23 @@ export class MovieService {
       },
       relations: ['detail', 'director', 'genres'],
     });
+  }
+
+  renameMovieFile(
+    tempFolder: string,
+    movieFolder: string,
+    createMovieDto: CreateMovieDto,
+  ) {
+    if (this.configService.get<string>(envVariablesKeys.env) !== 'prod') {
+      return rename(
+        join(process.cwd(), tempFolder, createMovieDto.movieFileName),
+        join(process.cwd(), movieFolder, createMovieDto.movieFileName),
+      );
+    } else {
+      return this.commonService.saveMovieToPermanentStorage(
+        createMovieDto.movieFileName,
+      );
+    }
   }
 
   async update(id: number, updateMovieDto: UpdateMovieDto, qr: QueryRunner) {
