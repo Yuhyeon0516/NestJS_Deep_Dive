@@ -31,7 +31,7 @@ import { Throttle } from 'src/common/decorator/throttle.decorator';
 
 @Controller({
   path: 'movie',
-  version: '2',
+  // version: '2',
 })
 export class MovieControllerV2 {
   @Get()
@@ -42,7 +42,7 @@ export class MovieControllerV2 {
 
 @Controller({
   path: 'movie',
-  version: '1',
+  // version: '1',
 })
 @UseInterceptors(ClassSerializerInterceptor)
 export class MovieController {
