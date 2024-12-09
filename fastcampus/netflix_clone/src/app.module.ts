@@ -68,11 +68,11 @@ import { format, transports } from 'winston';
           configService.get<string>(envVariablesKeys.env) === 'prod'
             ? false
             : true,
-        // ...(configService.get<string>(envVariablesKeys.env) === 'prod' && {
-        //   ssl: {
-        //     rejectUnauthorized: false,
-        //   },
-        // }),
+        ...(configService.get<string>(envVariablesKeys.env) === 'prod' && {
+          ssl: {
+            rejectUnauthorized: false,
+          },
+        }),
       }),
       inject: [ConfigService],
     }),
